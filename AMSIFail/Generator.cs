@@ -130,7 +130,7 @@ namespace AMSIFail
         public static string ObfuscateString(string data)
         {
             string obfuscatedString = "";
-            switch (RandomNumber(1, 4))
+            switch (RandomNumber(1, 3))
             {
                 case 1:
                     foreach (char _char in data)
@@ -142,7 +142,7 @@ namespace AMSIFail
                     //Obfuscate the whole string as HTML
                     return "+[" + RandomCase("System.Net.WebUtility") + "]::" + RandomCase("HtmlDecode") + "('" + HTMLEncode(data) + "')";
                 case 3:
-                    //Obfuscate the whole string as HTML
+                    //This part is not rdy yet :/
                     return $"+'{DiacriticEncode(data)}'." + @"Normalize('FormD') -replace '\p{Mn}'";
                 default:
                     return "";
