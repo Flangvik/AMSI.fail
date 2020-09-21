@@ -1,5 +1,5 @@
  # AMSI.fail 
-AMSI.fail generates obfuscated PowerShell snippets that break or disable AMSI for the current process using an C# Azure Function with an HTTP trigger.
+C# Azure Function HTTP trigger that generates obfuscated PowerShell snippets that break or disable AMSI for the current process.
 
 # What is AMSI.fail?
 AMSI.fail generates obfuscated PowerShell snippets that break or disable AMSI for the current process.
