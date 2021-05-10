@@ -1,9 +1,13 @@
  # AMSI.fail 
-C# Azure Function with an HTTP trigger that generates obfuscated PowerShell snippets that break or disable AMSI for the current process.
+Originally C# Azure Function (Later ported to JS) with an HTTP trigger that generates obfuscated PowerShell snippets that break or disable AMSI for the current process.
 The snippets are randomly selected from a small pool of techniques/variations before being obfuscated. Every snippet is obfuscated at runtime/request so that no generated output share the same signatures.
  
 Checkout https://www.amsi.fail/ for a live and working demo!
 
+If you need an to API hit there is also an CloudFlare worker running
+
+https://amsifail.flangvik.workers.dev/api/Generate
+https://amsifail.flangvik.workers.dev/api/GenerateEnc
 
 # What is AMSI?
 

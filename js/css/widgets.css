@@ -1,0 +1,492 @@
+/*************************************************************************
+ * GitHub: https://github.com/yenchiah/project-website-template
+ * Version: v3.27
+ * This CSS file has widgets for building interactive web applications
+ * Use this file with widgets.js
+ * If you want to keep this template updated, avoid modifying this file
+ * Instead, add your own CSS in the index.css
+ *************************************************************************/
+
+.custom-tab {
+  margin: 15px 0;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: stretch;
+  align-content: stretch;
+  box-sizing: border-box;
+}
+
+.custom-tab .custom-tab-menu {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+  border-bottom: none;
+  width: fit-content;
+  width: -moz-fit-content;
+}
+
+.custom-tab .custom-tab-menu-item {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+  font-family: 'Open Sans', Helvetica, Arial, sans-serif;
+}
+
+.custom-tab .custom-tab-menu-item:hover {
+  background-color: #ddd;
+}
+
+.custom-tab .custom-tab-menu-item.active {
+  background-color: #ccc;
+}
+
+.custom-tab .custom-tab-content {
+  padding: 25px;
+  border: 1px solid #ccc;
+  display: none;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: stretch;
+  align-content: stretch;
+  box-sizing: border-box;
+}
+
+.custom-tab .custom-tab-menu.center,
+.custom-tab .custom-tab-content .image.center,
+.custom-tab .custom-tab-content p.center,
+.custom-tab .custom-tab-content table.center {
+  align-self: center;
+}
+
+.custom-tab .custom-tab-content.no-padding {
+  padding: 0;
+}
+
+.custom-tab .graph-title.add-top-right-left-padding {
+  padding-top: 25px;
+  padding-left: 25px;
+  padding-right: 25px;
+  padding-bottom: 5px;
+}
+
+.custom-tab .graph-title.add-bottom-border {
+  border-bottom: 1px solid #ccc;
+}
+
+.custom-tab .image:first-child,
+.custom-tab .custom-table-container:first-child,
+.custom-tab .text:first-child,
+.custom-tab .graph-title:first-child {
+  margin-top: 0;
+}
+
+.custom-tab .image:last-child,
+.custom-tab .custom-table-container:last-child,
+.custom-tab .text:last-child,
+.custom-tab .graph-title:last-child {
+  margin-bottom: 0;
+}
+
+.custom-radio {
+  padding: 0;
+  text-align: center;
+  outline: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color 0.1s, box-shadow 0.1s;
+  text-decoration: none;
+  box-sizing: border-box;
+  background-color: white;
+  border: 0;
+  border-spacing: 0;
+  display: inline-block;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.custom-radio:not(:disabled):hover {
+  color: #333333;
+  background-color: #eeeeee;
+}
+
+.custom-radio:disabled {
+  opacity: 0.4;
+}
+
+.custom-radio.custom-radio-left [type="radio"]+label {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-right: 0 !important;
+}
+
+.custom-radio.custom-radio-right [type="radio"]+label {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.custom-radio.custom-radio-middle [type="radio"]+label {
+  border-radius: 0 !important;
+  border-right: 0 !important;
+}
+
+.custom-radio [type="radio"]+label {
+  position: relative;
+  padding: 7px 13px 6px 29px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 14px;
+  display: table-cell;
+  color: #666666;
+  border: 1px solid #bbbbbb;
+  border-radius: 2px;
+  font-family: 'Open Sans', Helvetica, Arial, sans-serif;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.custom-radio [type="radio"] {
+  position: absolute;
+  left: -9999px;
+}
+
+.custom-radio [type="radio"]:checked+label {
+  color: white;
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.custom-radio [type="radio"]+label:before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 7px;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #ddd;
+  border-radius: 100%;
+  background: #fff;
+}
+
+.custom-radio [type="radio"]+label:after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: #005cbf;
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  border-radius: 100%;
+  -webkit-transition: all 0.1s ease;
+  transition: all 0.1s ease;
+}
+
+.custom-radio [type="radio"]:not(:checked)+label:after {
+  opacity: 0;
+  -webkit-transform: scale(0);
+  transform: scale(0);
+}
+
+.custom-radio [type="radio"]:checked+label:after {
+  opacity: 1;
+  -webkit-transform: scale(1);
+  transform: scale(1);
+}
+
+.custom-dropdown {
+  position: relative;
+  display: block;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.custom-dropdown>a {
+  padding: 5px 26px 5px 8px;
+  outline: none;
+  border-radius: 2px;
+  box-shadow: none;
+  transition: background-color 0.1s, box-shadow 0.1s, border 0.1s;
+  text-decoration: none;
+  display: block;
+  box-sizing: border-box;
+  color: black;
+  height: 28px;
+  border: 1px solid #7d7d7d;
+  background-color: white;
+  width: 100%;
+  cursor: pointer;
+}
+
+.custom-dropdown.large>a {
+  height: 37px;
+  padding: 5px 31px 5px 10px;
+}
+
+.custom-dropdown>a>span {
+  text-align: left;
+  font-size: 14px !important;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  display: block;
+  text-overflow: ellipsis;
+}
+
+.custom-dropdown.large>a>span {
+  font-size: 16px !important;
+  line-height: 25px;
+}
+
+.custom-dropdown>a:after {
+  position: absolute;
+  content: "";
+  top: 13px;
+  right: 10px;
+  width: 0;
+  height: 0;
+  border: 4px solid transparent;
+  border-top-color: black;
+}
+
+.custom-dropdown.large>a:after {
+  top: 17px;
+  right: 13px;
+  border: 5px solid transparent;
+  border-top-color: black;
+}
+
+.custom-dropdown>div {
+  display: none;
+  position: absolute;
+  margin-top: -1px;
+  border: 1px solid #7d7d7d;
+  background-color: white;
+  z-index: 1;
+  box-sizing: border-box;
+  border-radius: 2px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  min-width: 100%;
+}
+
+.custom-dropdown>a:focus {
+  pointer-events: none;
+}
+
+.custom-dropdown>a:focus+div {
+  display: block;
+}
+
+.custom-dropdown>div:hover {
+  display: block;
+}
+
+.custom-dropdown>div>a {
+  color: black;
+  padding: 5px 8px;
+  text-decoration: none;
+  text-align: left;
+  display: block;
+  outline: none;
+  font-size: 14px !important;
+  line-height: 16px;
+  height: 26px;
+  white-space: nowrap;
+  border-left: 0;
+  border-top: 0;
+  border-right: 0;
+  box-sizing: border-box;
+}
+
+.custom-dropdown.large>div>a {
+  font-size: 16px !important;
+  line-height: 25px;
+  height: 35px;
+  padding: 5px 10px;
+}
+
+.custom-dropdown>div>a:hover {
+  background-color: #e1e1e1;
+  color: black;
+}
+
+.custom-dropdown>div.force-hide {
+  display: none !important;
+}
+
+.custom-dialog-flat {
+  font-size: 16px;
+  font-family: 'Open Sans', Helvetica, Arial, sans-serif;
+  background-color: white;
+  background-image: none;
+  padding: 0;
+  margin: 0;
+  border-radius: 2px;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.custom-dialog-flat .ui-dialog-content {
+  padding: 0 1.2em 1.2em 1.2em;
+  background-color: white;
+  background-image: none;
+}
+
+.custom-dialog-flat .ui-dialog-content p {
+  margin: 0.6em 0;
+}
+
+.custom-dialog-flat .ui-dialog-content p:first-child {
+  margin-top: 0;
+}
+
+.custom-dialog-flat .ui-dialog-content p:last-child {
+  margin-bottom: 0;
+}
+
+.custom-dialog-flat .ui-dialog-titlebar {
+  background-color: white;
+  background-image: none;
+  border: 0;
+  border-radius: 0px;
+  color: #2E2F30;
+  padding: 1.2em 1.2em 1.2em 1.2em;
+}
+
+.custom-dialog-flat .ui-dialog-titlebar .ui-dialog-title {
+  text-align: center;
+  margin: 0 0 0 0.5em;
+  font-size: 19px;
+}
+
+.custom-dialog-flat .ui-dialog-titlebar .ui-dialog-titlebar-close {
+  background: white none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  right: 1.2em;
+  top: 1.3em;
+  text-indent: 0;
+}
+
+.custom-dialog-flat .ui-dialog-titlebar .ui-dialog-titlebar-close:after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  bottom: -12px;
+  left: -12px;
+  right: -12px;
+}
+
+.custom-dialog-flat .ui-dialog-titlebar .ui-dialog-titlebar-close.ui-state-default {
+  background: none;
+  border: none;
+  height: auto;
+}
+
+.custom-dialog-flat .ui-dialog-titlebar .ui-dialog-titlebar-close .ui-button-icon {
+  background: none;
+  border: 0;
+}
+
+.custom-dialog-flat .ui-dialog-titlebar .ui-dialog-titlebar-close .fa-lg {
+  vertical-align: -0.15em;
+}
+
+.custom-dialog-flat .ui-dialog-buttonpane {
+  border-width: 0;
+  margin: 0;
+  padding: 0em 1.2em 1.2em 1.2em;
+}
+
+.custom-dialog-flat .ui-dialog-buttonpane .ui-dialog-buttonset {
+  width: 100%;
+  text-align: right;
+}
+
+.custom-dialog-flat .ui-dialog-buttonpane .ui-dialog-buttonset .ui-button {
+  font-family: 'Open Sans', Helvetica, Arial, sans-serif;
+  border: 1px solid #7d7d7d;
+  background: #7d7d7d none;
+  color: white;
+  border-radius: 2px;
+  margin: 0 0 0 1em;
+  outline: none;
+}
+
+.custom-dialog-flat .ui-dialog-buttonpane .ui-dialog-buttonset .ui-button:first-child {
+  margin-left: 0;
+}
+
+.custom-dialog-flat .ui-dialog-buttonpane .ui-dialog-buttonset .ui-button.ui-action-button {
+  background-color: #007bff;
+  border: 1px solid #007bff;
+}
+
+.custom-dialog-flat .ui-dialog-buttonpane .ui-dialog-buttonset .ui-button.full-width {
+  width: 100%;
+  margin-left: 0;
+}
+
+.custom-dialog-flat .ui-dialog-buttonpane .ui-dialog-buttonset .ui-button.full-width:not(:first-child) {
+  margin-top: 0.8em;
+}
+
+.ui-widget-overlay {
+  opacity: 0.7;
+  background-image: none;
+  background-color: black;
+}
+
+.control-group .custom-radio {
+  margin: 10px 0 10px 0;
+}
+
+.control-group .custom-dropdown {
+  margin: 10px 0 10px 0;
+}
+
+.control-group .custom-dropdown:not(:last-child) {
+  margin-right: 15px;
+}
+
+.no-scroll {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  position: fixed;
+  height: 100vh;
+}
+
+.fit-parent {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: auto;
+}
