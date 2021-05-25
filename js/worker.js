@@ -261,7 +261,8 @@ function encodePayload(input){
         "amsiSession",
         "AmsiUtils",
         "amsiInitFailed",
-        "WriteInt32"
+        "WriteInt32",
+        "System.Management"
     ]
 
     for (const word of mustEncode){
