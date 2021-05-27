@@ -1,0 +1,19 @@
+{
+  "name": "amsi-fail",
+  "version": "1.0.0",
+  "description": "",
+  "main": "worker.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Flangvik/AMSI.fail.git"
+  },
+  "author": "Flangvik",
+  "license": "",
+  "bugs": {
+    "url": "https://github.com/Flangvik/AMSI.fail/issues"
+  },
+  "homepage": "https://github.com/Flangvik/AMSI.fail#readme"
+}
