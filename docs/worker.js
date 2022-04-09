@@ -303,7 +303,32 @@ function encodePayload(input){
         input = input.replaceAll(word, obf)
     }
 
-    return input
+    input = input.replace(";", ";$" + getRandomJunk() + "=\"" + obfuscateString(getRandomJunk())+ "\";[Threading.Thread]::Sleep(" +randomInt(2000)+");")
+    
+    let nullValue = randomCase(randomString(randomInt(10)))
+
+    input = input.replace("$null","$" + nullValue)
+
+    input + ";$" + getRandomJunk() + "=\"" + obfuscateString(getRandomJunk())+ "\";[Threading.Thread]::Sleep(" +randomInt(2000)+")"
+
+    input=  input.replace(";;","")
+
+    return input.replace("\n","\n$" + nullValue + "=$null;")
+}
+
+/**
+ * creates a random junk 
+ * @param {Integer} length
+ * @returns {String} random string of a given length
+ */
+ function getRandomJunk(){
+    let length = randomInt(30) 
+    const alphabet = "abcdefghijklmnopqrstuvwxyz"
+    let ret = ""
+    for(var i=0; i < length; i++){
+        ret += alphabet[Math.floor(Math.random() * alphabet.length)]
+    }
+    return ret
 }
 
 /**
