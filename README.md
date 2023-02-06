@@ -4,11 +4,6 @@ The snippets are randomly selected from a small pool of techniques/variations be
  
 Checkout https://amsi.fail/ for a live and working demo!
 
-If you need an to API hit there is also an CloudFlare worker running
-
-https://amsifail.flangvik.workers.dev/api/Generate
-https://amsifail.flangvik.workers.dev/api/GenerateEnc
-
 # What is AMSI?
 
 As f-secure explained in one of their [excellent blog-posts:](https://blog.f-secure.com/hunting-for-amsi-bypasses/)
