@@ -1,129 +1,878 @@
-<html><head><meta charset="utf-8">
-	<title>AMSI.fail</title>
-	<link href="css/frame.css" media="screen" rel="stylesheet" type="text/css">
-	<link href="css/controls.css" media="screen" rel="stylesheet" type="text/css">
-	<link href="css/custom.css" media="screen" rel="stylesheet" type="text/css">
-	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet" type="text/css">
-	<link href="https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300,700" rel="stylesheet" type="text/css">
-	<link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700" rel="stylesheet"><script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script><script src="js/menu.js"></script>
-	<style type="text/css">.menu-index {
-      color: rgb(255, 255, 255) !important;
-      opacity: 1 !important;
-      font-weight: 700 !important;
-    }
-	</style>
-	<script src="js/amsi-engine.js"></script>
-	<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMSI.fail</title>
+<meta name="description" content="Generate obfuscated PowerShell snippets that break or disable AMSI for the current process.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Custom Properties ── */
+:root {
+  --bg-deep: #06060b;
+  --bg-base: #0a0a0f;
+  --bg-surface: #111118;
+  --bg-elevated: #181822;
+  --border-dim: #1e1e2a;
+  --border-subtle: #2a2a3a;
+  --accent: #00ff88;
+  --accent-dim: #00cc6a;
+  --accent-glow: rgba(0, 255, 136, 0.15);
+  --accent-glow-strong: rgba(0, 255, 136, 0.3);
+  --cyan: #38bdf8;
+  --cyan-dim: #0ea5e9;
+  --text-primary: #eaeaef;
+  --text-secondary: #9a9ab0;
+  --text-muted: #5a5a72;
+  --font-display: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --max-w: 880px;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+/* ── Base ── */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Background texture ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0, 255, 136, 0.03) 0%, transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.02) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, var(--border-dim) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Nav ── */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(6, 6, 11, 0.8);
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.nav-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text-primary);
+  text-decoration: none;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-logo .dot {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-links a {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-links a:hover {
+  color: var(--text-primary);
+}
+
+.nav-links a svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* ── Main ── */
+main {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── Hero ── */
+.hero {
+  padding: 72px 0 48px;
+  text-align: center;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(42px, 8vw, 72px);
+  font-weight: 700;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+  animation: fadeUp 0.6s ease-out both;
+}
+
+.hero-title .accent {
+  color: var(--accent);
+  text-shadow: 0 0 30px var(--accent-glow-strong);
+}
+
+.hero-sub {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 540px;
+  margin: 0 auto;
+  line-height: 1.7;
+  animation: fadeUp 0.6s ease-out 0.1s both;
+}
+
+/* ── Generator Card ── */
+.generator {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  margin-bottom: 56px;
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.6s ease-out 0.2s both;
+}
+
+.generator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+  opacity: 0.5;
+}
+
+.generator-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.generator-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.generator-label::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow-strong);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── Select / Dropdown ── */
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--text-secondary);
+  pointer-events: none;
+}
+
+.technique-select {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 10px 36px 10px 14px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  min-width: 220px;
+}
+
+.technique-select:hover {
+  border-color: var(--text-muted);
+}
+
+.technique-select:focus {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.technique-select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ── Textarea / Output ── */
+.output-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.output-textarea {
+  width: 100%;
+  min-height: 240px;
+  max-height: 500px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--accent);
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  tab-size: 4;
+  -moz-tab-size: 4;
+}
+
+.output-textarea:focus {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.output-textarea::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.output-textarea::selection {
+  background: var(--accent-glow-strong);
+  color: #fff;
+}
+
+/* ── Buttons ── */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--text-muted);
+  background: var(--bg-surface);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg-deep);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.btn-primary:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.btn-copy {
+  position: relative;
+}
+
+.btn-copy.copied {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-copy .btn-label-default,
+.btn-copy .btn-label-copied {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.btn-copy .btn-label-copied {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.btn-copy.copied .btn-label-default {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.btn-copy.copied .btn-label-copied {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ── Status line ── */
+.status-line {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 18px;
+  transition: color 0.3s;
+}
+
+.status-line.active {
+  color: var(--text-secondary);
+}
+
+/* ── Technique description ── */
+.technique-desc {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  min-height: 20px;
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+
+.technique-desc.visible {
+  opacity: 1;
+  color: var(--text-secondary);
+}
+
+/* ── Info Sections ── */
+.info-grid {
+  display: grid;
+  gap: 20px;
+  animation: fadeUp 0.6s ease-out 0.3s both;
+}
+
+.info-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  padding: 28px 28px 24px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.info-card:hover {
+  border-color: var(--border-subtle);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.info-card h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.info-card h2 .tag {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.info-card p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+.info-card p:last-child {
+  margin-bottom: 0;
+}
+
+.info-card a {
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color 0.2s;
+  border-bottom: 1px solid transparent;
+}
+
+.info-card a:hover {
+  color: var(--cyan-dim);
+  border-bottom-color: var(--cyan-dim);
+}
+
+.info-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-card ul li {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  gap: 8px;
+}
+
+.info-card ul li:last-child {
+  border-bottom: none;
+}
+
+.info-card ul li::before {
+  content: '>';
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.info-card ul li b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── AMSI Steps list ── */
+.steps-list {
+  counter-reset: step;
+}
+
+.steps-list li {
+  counter-increment: step;
+}
+
+.steps-list li::before {
+  content: counter(step) '.';
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  min-width: 22px;
+}
+
+/* ── Credits subsection ── */
+.credit-section-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 20px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.credit-section-title:first-of-type {
+  margin-top: 0;
+}
+
+/* ── Footer ── */
+footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--border-dim);
+  padding: 28px 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  animation: fadeUp 0.6s ease-out 0.4s both;
+}
+
+footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+footer a:hover {
+  color: var(--accent);
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .hero {
+    padding: 48px 0 32px;
+  }
+
+  .hero-title {
+    letter-spacing: -1px;
+  }
+
+  .hero-sub {
+    font-size: 15px;
+  }
+
+  .generator {
+    padding: 20px;
+  }
+
+  .technique-select {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .generator-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .select-wrap {
+    width: 100%;
+  }
+
+  .btn-row {
+    flex-direction: column;
+  }
+
+  .btn-row .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .info-card {
+    padding: 20px;
+  }
+
+  .output-textarea {
+    min-height: 180px;
+    font-size: 12px;
+  }
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ── Selection ── */
+::selection {
+  background: var(--accent-glow-strong);
+  color: #fff;
+}
+</style>
+<script src="js/amsi-engine.js"></script>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">AMSI<span class="dot">.</span>fail</a>
+    <div class="nav-links">
+      <a href="#about">About</a>
+      <a href="#credits">Credits</a>
+      <a href="https://github.com/Flangvik/AMSI.fail" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <!-- Hero -->
+  <section class="hero">
+    <h1 class="hero-title">AMSI<span class="accent">.fail</span></h1>
+    <p class="hero-sub">Generate obfuscated PowerShell snippets that break or disable AMSI for the current process.</p>
+  </section>
+
+  <!-- Generator -->
+  <section class="generator" id="generator">
+    <div class="generator-header">
+      <div class="generator-label">Generator</div>
+      <div class="select-wrap">
+        <select id="techniquePicker" class="technique-select">
+          <option value="random">Random (all techniques)</option>
+        </select>
+      </div>
+    </div>
+    <div class="output-wrap">
+      <textarea id="PowerShellOut" class="output-textarea" placeholder="Click Generate to create an obfuscated AMSI bypass..." spellcheck="false" readonly></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="GeneratePS()">Generate</button>
+      <button class="btn" onclick="GenerateEncPS()">Generate Encoded</button>
+      <button class="btn btn-copy" id="copyBtn" onclick="CopyToClipboard()">
+        <span class="btn-label-default">Copy to Clipboard</span>
+        <span class="btn-label-copied">Copied!</span>
+      </button>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+    <div class="technique-desc" id="techniqueDesc"></div>
+  </section>
+
+  <!-- Info Cards -->
+  <div class="info-grid">
+
+    <!-- What is AMSI? -->
+    <section class="info-card" id="about">
+      <h2>What is AMSI? <span class="tag">Overview</span></h2>
+      <p>AMSI (Antimalware Scan Interface) is a Windows interface that allows applications and services to scan script content for malicious usage. If a signature is registered by the AMSI antimalware service provider (Windows Defender by default), it will be blocked.</p>
+      <p>Here is how PowerShell integrates with AMSI:</p>
+      <ul class="steps-list">
+        <li>When a PowerShell process is created, AMSI.DLL is loaded from disk into its address space.</li>
+        <li>Within AMSI.DLL, there's a function known as AmsiScanBuffer(), used to scan a script's content.</li>
+        <li>Any supplied content is first sent to AmsiScanBuffer() before any execution takes place.</li>
+        <li>AmsiScanBuffer() checks with the registered anti-virus to determine if any signatures have been created.</li>
+        <li>If the content is deemed malicious, it is blocked.</li>
+      </ul>
+      <p>Since AMSI relies on being loaded within the process executing the script, techniques to break or patch specific functions within amsi.dll are well known.</p>
+    </section>
+
+    <!-- Detection -->
+    <section class="info-card">
+      <h2>Detection <span class="tag">Defense</span></h2>
+      <p>All demonstrated techniques rely on tampering with the amsi.dll library within the operating process. Generic tamper-detection of the loaded amsi.dll is key to identifying these bypasses at runtime.</p>
+    </section>
+
+    <!-- Credits -->
+    <section class="info-card" id="credits">
+      <h2>Credits <span class="tag">Attribution</span></h2>
+
+      <div class="credit-section-title">Bypass Technique Authors</div>
+      <ul>
+        <li><b>ForceError</b> &mdash; amsiContext/amsiSession corruption &mdash; <a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">S3cur3Th1sSh1t</a></li>
+        <li><b>MattGRefl</b> &mdash; amsiInitFailed reflection &mdash; <a href="https://twitter.com/mattifestation/status/735261120487772160">Matt Graeber</a></li>
+        <li><b>MattGReflLog</b> &mdash; Delegate-based reflection (WMF5 logging bypass) &mdash; <a href="https://twitter.com/mattifestation">Matt Graeber</a></li>
+        <li><b>MattGRef02</b> &mdash; amsiContext WriteInt32 overwrite &mdash; <a href="https://twitter.com/mattifestation">Matt Graeber</a></li>
+        <li><b>RastaBuf</b> &mdash; AmsiScanBuffer memory patch &mdash; <a href="https://rastamouse.me/memory-patching-amsi-bypass/">Rasta Mouse</a></li>
+        <li><b>FieldOffset</b> &mdash; amsiContext Marshal::Copy &mdash; <a href="https://twitter.com/mattifestation">Matt Graeber</a></li>
+        <li><b>ScanBufferPatchAlt</b> &mdash; AmsiScanBuffer patch (no csc.exe) &mdash; <a href="https://rastamouse.me/memory-patching-amsi-bypass/">Rasta Mouse</a> + <a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec</a></li>
+        <li><b>ReflectionFromAssembly</b> &mdash; AppDomain assembly enumeration &mdash; <a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec (@am0nsec)</a></li>
+        <li><b>BlankAmsiProviders</b> &mdash; Null amsiContext + amsiSession &mdash; Context corruption variant</li>
+        <li><b>HardwareBreakpoint</b> &mdash; VEH + debug registers &mdash; <a href="https://github.com/CCob/SharpBlock">@CCob</a>, adapted by <a href="https://github.com/rasta-mouse">Rasta Mouse</a></li>
+      </ul>
+
+      <div class="credit-section-title">Project</div>
+      <ul>
+        <li>Major credit to <a href="https://github.com/MartinIngesen">MartinIngesen</a> for porting the original C# code into JS</li>
+        <li><a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">S3cur3Th1sSh1t's AMSI Bypass Collection</a></li>
+        <li><a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec &mdash; Exploring PowerShell AMSI and Logging Evasion</a></li>
+      </ul>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <a href="https://github.com/Flangvik/AMSI.fail">AMSI.fail</a> &mdash; by <a href="https://github.com/Flangvik">Flangvik</a>
+</footer>
+
+<script>
+var techniqueDescriptions = {
+  'ForceError': 'Allocates a zeroed memory block via Marshal::AllocHGlobal, then overwrites the amsiContext and amsiSession fields through reflection, causing all subsequent AMSI scans to fail with an error.',
+  'MattGRefl': 'Uses .NET reflection to locate the amsiInitFailed field inside AmsiUtils and sets it to true, making PowerShell believe AMSI failed to initialize and skip all scan calls.',
+  'MattGReflLog': 'Uses a delegate-based reflection approach to set amsiInitFailed to true, bypassing WMF5 script block logging restrictions that would detect direct reflection access.',
+  'MattGRef02': 'Finds the amsiContext field via reflection and overwrites its integer value, corrupting the AMSI context structure so AmsiScanBuffer returns without scanning.',
+  'RastaBuf': 'Patches the first bytes of AmsiScanBuffer() in amsi.dll with a return instruction, causing the function to exit immediately and always report content as clean.',
+  'FieldOffset': 'Uses Marshal::Copy to overwrite the amsiContext field at its memory offset, corrupting the context pointer so all AMSI scan calls fail silently.',
+  'ScanBufferPatchAlt': 'Patches AmsiScanBuffer via UnsafeNativeMethods and a delegate, avoiding the need for csc.exe compilation while still overwriting the scan function in memory.',
+  'ReflectionFromAssembly': 'Enumerates loaded AppDomain assemblies to dynamically locate the AMSI types and fields, then corrupts them, avoiding hardcoded type names that trigger signatures.',
+  'BlankAmsiProviders': 'Zeros out both the amsiContext pointer and amsiSession handle via reflection, effectively disconnecting AMSI from its antimalware provider entirely.',
+  'HardwareBreakpoint': 'Installs a Vectored Exception Handler and sets a hardware breakpoint (debug register) on AmsiScanBuffer, intercepting calls without modifying any memory.'
+};
+
+function detectTechnique(output) {
+  var match = output.match(/^#\s*Stub:\s*(\S+)/m);
+  return match ? match[1] : null;
+}
+
+function showTechniqueDesc(techniqueName) {
+  var el = document.getElementById('techniqueDesc');
+  var desc = techniqueDescriptions[techniqueName];
+  if (desc) {
+    el.textContent = desc;
+    el.classList.add('visible');
+  } else {
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+}
+
 function GeneratePS() {
-  const select = document.getElementById('techniquePicker');
-  const technique = select.value === 'random' ? null : select.value;
-  document.getElementById('PowerShellOut').value = generate(technique);
+  var select = document.getElementById('techniquePicker');
+  var technique = select.value === 'random' ? null : select.value;
+  var output = generate(technique);
+  document.getElementById('PowerShellOut').value = output;
+  var detected = detectTechnique(output) || technique || 'Random';
+  showStatus('Generated ' + detected + ' payload (' + output.length + ' bytes)');
+  showTechniqueDesc(detected);
 }
 
 function CopyToClipboard() {
-  const txt = document.getElementById('PowerShellOut');
+  var txt = document.getElementById('PowerShellOut');
   if (!txt.value) return;
-  navigator.clipboard.writeText(txt.value);
+  navigator.clipboard.writeText(txt.value).then(function() {
+    var btn = document.getElementById('copyBtn');
+    btn.classList.add('copied');
+    showStatus('Copied to clipboard');
+    setTimeout(function() { btn.classList.remove('copied'); }, 1500);
+  });
 }
 
 function GenerateEncPS() {
-  const select = document.getElementById('techniquePicker');
-  const technique = select.value === 'random' ? null : select.value;
-  document.getElementById('PowerShellOut').value = generateEncoded(technique);
+  var select = document.getElementById('techniquePicker');
+  var technique = select.value === 'random' ? null : select.value;
+  var output = generateEncoded(technique);
+  document.getElementById('PowerShellOut').value = output;
+  var detected = detectTechnique(output) || technique || 'Random';
+  showStatus('Generated encoded ' + detected + ' payload (' + output.length + ' bytes)');
+  showTechniqueDesc(detected);
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  const select = document.getElementById('techniquePicker');
-  listTechniques().forEach(name => {
-    const opt = document.createElement('option');
+function showStatus(msg) {
+  var el = document.getElementById('statusLine');
+  el.textContent = '> ' + msg;
+  el.classList.add('active');
+  setTimeout(function() { el.classList.remove('active'); }, 3000);
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  var select = document.getElementById('techniquePicker');
+  listTechniques().forEach(function(name) {
+    var opt = document.createElement('option');
     opt.value = name;
     opt.textContent = name;
     select.appendChild(opt);
   });
 });
 </script>
-</head>
-<body data-gr-c-s-loaded="true" data-new-gr-c-s-loaded="8.872.0" data-new-gr-c-s-check-loaded="8.873.0" data-gr-ext-installed="">
-<div class="menu-container">
-<div class="menu">
-<div class="menu-table flex-row-space-between">
-<div class="logo flex-row-center"><a href="index.html">AMSI.fail</a><a class="menu-index" style="font-size: 80%; position: absolute; bottom: 0;"></a></div>
-<a class="menu-button" href="javascript:void(0)" tabindex="0"><img src="img/menu.png"> </a>
 
-<div class="menu-items flex-row-center flex-item"><a class="menu-index" href="index.html">AMSI</a> <a href="https://github.com/Flangvik/AMSI.fail">GitHub</a></div>
-</div>
-</div>
-</div>
-
-<div class="content-container">
-<div class="content">
-<div class="content-table flex-column"><!--------------------------------------------------------------------------------------------><!--------------------------------------------------------------------------------------------><!--Start Text Only-->
-<div class="flex-row">
-<div class="flex-item flex-column" data-children-count="1">
-<h2 class="add-top-margin">What is AMSI.fail?</h2>
-
-<hr>
-<p class="text">AMSI.fail generates obfuscated PowerShell snippets that break or disable AMSI for the current process. The snippets are randomly selected from a small pool of techniques/variations before being obfuscated. Every snippet is obfuscated at runtime/request so that no generated output share the same signatures.<br data-children-count="0">
-&nbsp;</p>
-<select id="techniquePicker" class="custom-button" style="margin-bottom:10px;">
-  <option value="random">Random (default)</option>
-</select><br>
-<textarea cols="50" id="PowerShellOut" rows="10"></textarea><br>
-<button class="custom-button custom-button-primary" onclick="CopyToClipboard()">Copy to Clipboard</button>
-&nbsp;&nbsp;
-<button class="custom-button custom-button-primary" onclick="GeneratePS()">Generate</button>
-<p> </p>
-<button class="custom-button custom-button-primary" onclick="GenerateEncPS()">Generate Encoded</button>
-<h2 class="add-top-margin">What is AMSI?</h2>
-
-<hr>
-<p class="text">As f-secure explained in one of their excellent <a href="https://blog.f-secure.com/hunting-for-amsi-bypasses/">blog-posts</a>:<br>
-<br>
-AMSI is an interface on which applications or services (third-party included) are able to scan a script’s content for malicious usage. If a signature in the script is registered by the AMSI antimalware service provider (Windows Defender by default), it will be blocked.<br>
-To put this into context, consider the following steps PowerShell takes to integrate with AMSI:</p>
-
-<ul>
-	<li>When a PowerShell process is created, AMSI.DLL is loaded from disk into its address space.</li>
-	<li>Within AMSI.DLL, there’s a function known as AmsiScanBuffer(), essentially the function used to scan a script’s content.</li>
-	<li>In the PowerShell command prompt, any supplied content would first be sent to AmsiScanBuffer(), before any execution takes place.</li>
-	<li>Subsequently, AmsiScanBuffer() would check with the registered anti-virus to determine if any signatures have been created.</li>
-	<li>If the content is deemed malicious, it would be blocked.</li>
-</ul>
-
-<p class="text">Since AMSI relies on being loaded within the process executing the actual script, techniques to break or patch specific functions within amsi.dll are well known.</p>
-
-<h2 class="add-top-margin">Detection</h2>
-
-<hr>
-<p class="text">All the demonstrated techniques rely on tampering with the amsi.dll library within the operating process, generic tamper-detection is key.</p>
-
-<h2 class="add-top-margin">Credits</h2>
-
-<hr>
-<p class="text"><b>Bypass Technique Authors:</b></p>
-<ul>
-	<li><b>ForceError</b> (amsiContext/amsiSession corruption) &mdash; <a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">S3cur3Th1sSh1t's AMSI bypass collection</a></li>
-	<li><b>MattGRefl</b> (amsiInitFailed reflection) &mdash; <a href="https://twitter.com/mattifestation/status/735261120487772160">Matt Graeber (@mattifestation)</a></li>
-	<li><b>MattGReflLog</b> (Delegate-based reflection with WMF5 logging bypass) &mdash; <a href="https://twitter.com/mattifestation">Matt Graeber (@mattifestation)</a></li>
-	<li><b>MattGRef02</b> (amsiContext WriteInt32 overwrite) &mdash; <a href="https://twitter.com/mattifestation">Matt Graeber (@mattifestation)</a></li>
-	<li><b>RastaBuf</b> (AmsiScanBuffer memory patch) &mdash; <a href="https://rastamouse.me/memory-patching-amsi-bypass/">Rasta Mouse (@_RastaMouse)</a></li>
-	<li><b>FieldOffset</b> (amsiContext Marshal::Copy) &mdash; Derived from context corruption research by <a href="https://twitter.com/mattifestation">Matt Graeber</a></li>
-	<li><b>ScanBufferPatchAlt</b> (AmsiScanBuffer patch without csc.exe) &mdash; Derived from <a href="https://rastamouse.me/memory-patching-amsi-bypass/">Rasta Mouse's</a> technique, using <a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec's research</a></li>
-	<li><b>ReflectionFromAssembly</b> (AppDomain assembly enumeration) &mdash; <a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec (@am0nsec)</a></li>
-	<li><b>BlankAmsiProviders</b> (Null amsiContext + amsiSession) &mdash; Variant of context corruption techniques</li>
-	<li><b>HardwareBreakpoint</b> (VEH + debug registers) &mdash; <a href="https://github.com/CCob/SharpBlock">@CCob (SharpBlock)</a>, adapted by <a href="https://github.com/rasta-mouse">Rasta Mouse</a></li>
-</ul>
-<p class="text"><b>Project:</b></p>
-<ul>
-	<li>Major credit to <a href="https://github.com/MartinIngesen">MartinIngesen</a> for porting the original C# code into JS! :) </li>
-	<li><a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">S3cur3Th1sSh1t's AMSI Bypass Collection</a></li>
-	<li><a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec - Exploring PowerShell AMSI and Logging Evasion</a></li>
-	<li><a href="https://github.com/yenchiah/project-website-template">Website template by yenchiah</a></li>
-</ul>
-</div>
-</div>
-</div>
-</div>
-</div>
-
-</body></html>
+</body>
+</html>
