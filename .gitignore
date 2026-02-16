@@ -1,0 +1,17 @@
+# Markdown
+*.md
+
+# AI and editor-AI related
+.cursor/
+.cursorrules
+.cursorignore
+.claude/
+.aider*
+*.ai
+.playwright-mcp/
+
+# QA, stress, verify and inspect tooling (docs)
+docs/qa-*
+docs/stress-test.js
+docs/verify-obfuscation.js
+docs/inspect-samples.js

@@ -759,8 +759,11 @@ ObfuscationPipeline.addStage({
   name: 'integerObfuscation',
   process(payload) {
     let { raw } = payload;
+    const hereRegions = findHereStringRegions(raw);
 
-    raw = raw.replace(/(?<=[\(,\s])(\d{2,})(?=[\),;\s\]])/g, (match) => {
+    raw = raw.replace(/(?<=[\(,\s])(\d{2,})(?=[\),;\s\]])/g, (match, _p1, offset) => {
+      // Do NOT obfuscate integers inside here-strings (C# code requires literal ints)
+      if (isInsideHereString(offset, hereRegions)) return match;
       const val = parseInt(match, 10);
       if (val <= 0) return match;
       return obfuscateInt(val);
