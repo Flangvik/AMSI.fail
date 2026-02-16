@@ -20,6 +20,12 @@ function GeneratePS() {
   document.getElementById('PowerShellOut').value = generate(technique);
 }
 
+function CopyToClipboard() {
+  const txt = document.getElementById('PowerShellOut');
+  if (!txt.value) return;
+  navigator.clipboard.writeText(txt.value);
+}
+
 function GenerateEncPS() {
   const select = document.getElementById('techniquePicker');
   const technique = select.value === 'random' ? null : select.value;
@@ -63,6 +69,7 @@ window.addEventListener('DOMContentLoaded', () => {
   <option value="random">Random (default)</option>
 </select><br>
 <textarea cols="50" id="PowerShellOut" rows="10"></textarea><br>
+<button class="custom-button custom-button-primary" onclick="CopyToClipboard()">Copy to Clipboard</button>
 <button class="custom-button custom-button-primary" onclick="GeneratePS()">Generate</button>
 <p> </p>
 <button class="custom-button custom-button-primary" onclick="GenerateEncPS()">Generate Encoded</button>
