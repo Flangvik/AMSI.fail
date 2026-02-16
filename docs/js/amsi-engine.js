@@ -495,8 +495,10 @@ public class ${className} {
             var rip = Marshal.ReadInt64(ctx, 0xF8);
             if ((ulong)rip == (ulong)_target) {
                 Marshal.WriteInt64(ctx, 0x78, 0x80070057);
-                var dr7 = Marshal.ReadInt64(ctx, 0x70);
-                Marshal.WriteInt64(ctx, 0x70, dr7 & ~(long)1);
+                var rsp = Marshal.ReadInt64(ctx, 0x98);
+                Marshal.WriteInt64(ctx, 0xF8, Marshal.ReadInt64(new IntPtr(rsp)));
+                Marshal.WriteInt64(ctx, 0x98, rsp + 8);
+                return -1;
             }
         }
         return 0;
