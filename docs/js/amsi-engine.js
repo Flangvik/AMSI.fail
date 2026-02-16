@@ -889,7 +889,7 @@ ObfuscationPipeline.addStage({
         break;
       case 1: {
         const v = randomVarName();
-        const escaped = raw.replace(/"/g, '`"');
+        const escaped = raw.replace(/\$/g, '`$').replace(/"/g, '`"');
         raw = `$${v}="${escaped}";${randomCase('Invoke-Expression')} $${v}`;
         break;
       }
