@@ -563,9 +563,13 @@ function charEncodeAsByte(char) {
 }
 
 function encodeStringChars(str) {
-  const parts = str.split('').map(c =>
-    Math.round(Math.random()) ? charEncodeAsChar(c) : charEncodeAsByte(c)
-  );
+  const parts = str.split('').map(c => {
+    if (Math.round(Math.random())) {
+      return charEncodeAsChar(c);
+    }
+    // Wrap byte in [char] so it produces the character, not its decimal number
+    return `[${randomCase('char')}]${charEncodeAsByte(c)}`;
+  });
   // Cast first element to [string] so PS treats + as string concatenation, not integer addition
   if (parts.length > 1) parts[0] = '[string]' + parts[0];
   return parts.join('+');
