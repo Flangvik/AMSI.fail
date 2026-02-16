@@ -99,12 +99,25 @@ To put this into context, consider the following steps PowerShell takes to integ
 <h2 class="add-top-margin">Credits</h2>
 
 <hr>
+<p class="text"><b>Bypass Technique Authors:</b></p>
+<ul>
+	<li><b>ForceError</b> (amsiContext/amsiSession corruption) &mdash; <a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">S3cur3Th1sSh1t's AMSI bypass collection</a></li>
+	<li><b>MattGRefl</b> (amsiInitFailed reflection) &mdash; <a href="https://twitter.com/mattifestation/status/735261120487772160">Matt Graeber (@mattifestation)</a></li>
+	<li><b>MattGReflLog</b> (Delegate-based reflection with WMF5 logging bypass) &mdash; <a href="https://twitter.com/mattifestation">Matt Graeber (@mattifestation)</a></li>
+	<li><b>MattGRef02</b> (amsiContext WriteInt32 overwrite) &mdash; <a href="https://twitter.com/mattifestation">Matt Graeber (@mattifestation)</a></li>
+	<li><b>RastaBuf</b> (AmsiScanBuffer memory patch) &mdash; <a href="https://rastamouse.me/memory-patching-amsi-bypass/">Rasta Mouse (@_RastaMouse)</a></li>
+	<li><b>FieldOffset</b> (amsiContext Marshal::Copy) &mdash; Derived from context corruption research by <a href="https://twitter.com/mattifestation">Matt Graeber</a></li>
+	<li><b>ScanBufferPatchAlt</b> (AmsiScanBuffer patch without csc.exe) &mdash; Derived from <a href="https://rastamouse.me/memory-patching-amsi-bypass/">Rasta Mouse's</a> technique, using <a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec's research</a></li>
+	<li><b>ReflectionFromAssembly</b> (AppDomain assembly enumeration) &mdash; <a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec (@am0nsec)</a></li>
+	<li><b>BlankAmsiProviders</b> (Null amsiContext + amsiSession) &mdash; Variant of context corruption techniques</li>
+	<li><b>HardwareBreakpoint</b> (VEH + debug registers) &mdash; <a href="https://github.com/CCob/SharpBlock">@CCob (SharpBlock)</a>, adapted by <a href="https://github.com/rasta-mouse">Rasta Mouse</a></li>
+</ul>
+<p class="text"><b>Project:</b></p>
 <ul>
 	<li>Major credit to <a href="https://github.com/MartinIngesen">MartinIngesen</a> for porting the original C# code into JS! :) </li>
-	<li><a href="https://github.com/yenchiah/project-website-template">https://github.com/yenchiah/project-website-template</a></li>
-	<li><a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell</a></li>
-	<li><a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/</a></li>
-	<li><a href="https://twitter.com/mattifestation/status/735261120487772160">https://twitter.com/mattifestation/status/735261120487772160</a></li>
+	<li><a href="https://github.com/S3cur3Th1sSh1t/Amsi-Bypass-Powershell">S3cur3Th1sSh1t's AMSI Bypass Collection</a></li>
+	<li><a href="https://www.mdsec.co.uk/2018/06/exploring-powershell-amsi-and-logging-evasion/">MDSec - Exploring PowerShell AMSI and Logging Evasion</a></li>
+	<li><a href="https://github.com/yenchiah/project-website-template">Website template by yenchiah</a></li>
 </ul>
 </div>
 </div>
